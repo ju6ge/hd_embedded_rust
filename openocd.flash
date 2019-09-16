@@ -1,0 +1,85 @@
+#which ports to use to provide telnet and gdb services
+set CHIPNAME atsame70q21
+set  SAME70_MAX_FLASH_SECTOR_NUMBER		17;            #18 Flash Sectors: 0...17
+set  SAME70_EFC_FCR						0x400E0C04;    #Flash Command Register
+set  SAME70_SET_GPNVM_BIT1				0x5a00010b;
+set  SAME70_RSTC_CR						0x400E1800;    #Reset Controller Control Register
+set  SAME70_SET_PROCRST					0xa5000009;
+set  SAME70_WDT_MR						0x400e1854;    #Watchdog Mode Register
+set  SAME70_WDT_WDDIS					0x00008000;    #Watchdog disable
+set  SAME70_CKGR_MOR					0x400e0620;    #PMC Clock Generator Main Oscillator Register
+set  SAME70_CKGR_MOSCXTEN				0x00370809;    # MOSCEN + OSCOUNT = 40
+set  SAME70_EEFC_FMR					0x400E0C00;    #Flash Mode Register
+set  SAME70_EEFC_FMR_FWS				0x00000100;    #Wait States Flash 
+
+
+
+telnet_port 4444
+gdb_port 3333
+version
+#interface_list
+echo -n "start openocd flasher\n "
+#interface configuration
+interface ftdi
+transport select swd
+ftdi_vid_pid 0x403 0x6010
+ftdi_channel 0
+#ftdi_serial "FTZ70800"     #funktioniert nur, wenn im FTDI chip die passende device description steht!!!
+adapter_khz 1000
+adapter_nsrst_delay 200
+#ftdi_layout_init 0x58 0x000b
+ftdi_layout_init 0x58 0x0083;      # "0" input; "1" output: Bit0 = SWCLK (output); Bit1 = TDI (output); Bit2 = SWDIO (input) -> 011 
+
+ftdi_layout_signal SWD_EN -data 0
+ftdi_layout_signal Prog -data 0x0080
+#ftdi_layout_signal nSRST -data 0x0010
+#ftdi_layout_signal nRST -data 0x0040
+
+
+sleep 10
+
+set _CHIPNAME CHIPNAME;
+set _ENDIAN little;
+set _WORKAREASIZE 4000;
+set _CPUTAPID 0x0bd11477;
+set _TARGETNAME $_CHIPNAME.cpu;
+
+eval swd newdap $_CHIPNAME cpu -irlen 4 -ircapture 0x1 -irmask 0xf -expected-id $_CPUTAPID
+
+target create $_TARGETNAME cortex_m -endian $_ENDIAN -chain-position $_TARGETNAME
+
+$_TARGETNAME configure -work-area-phys 0x20400000 -work-area-size $_WORKAREASIZE -work-area-backup 0
+
+cortex_m reset_config sysresetreq
+
+set _FLASHNAME $_CHIPNAME.flash
+flash bank $_FLASHNAME atsamv 0x00400000 0 0 0 $_TARGETNAME
+
+init 
+ftdi_set_signal Prog 0    #OPENOCD LED on
+reset
+halt
+flash probe 0
+
+mww $SAME70_CKGR_MOR $SAME70_CKGR_MOSCXTEN;		# Initialize main oscillator
+mww $SAME70_WDT_MR $SAME70_WDT_WDDIS;			# disable watchdog
+mww $SAME70_EEFC_FMR $SAME70_EEFC_FMR_FWS;		# flash wait states
+
+#sleep 1000
+#flash erase_sector 0 0 $SAME70_MAX_FLASH_SECTOR_NUMBER
+#sleep 1000
+#echo -n "write flash start\n "
+flash write_image erase unlock ../build/cortex_test.bin  0x00400000
+
+echo -n "enable boot from flash\n "
+mww $SAME70_EFC_FCR  $SAME70_SET_GPNVM_BIT1; # enable boot from flash
+
+#flash verify_bank 0 ../DEBUG/CORTEX_TEST.bin 0
+echo -n "reset processor\n "
+reset
+echo -n "openocd flasher shutdown\n "
+
+ftdi_set_signal Prog 1
+shutdown
+
+
