@@ -2,9 +2,12 @@
 
 This project is a test how far i can get in running an Embedded Soc, that was created during a university class, with rust only code.
 
+Warning all of this is experimental in nature and not intendet for production use! But since this is a very custom SoC that was specific
+to a university course the is not really any chance for that.
+
 ## Dependencies
 
-To build embedded programs using this template you'll need:
+To build embedded programs you'll need:
 
 - Rust 1.31, 1.30-beta, nightly-2018-09-13 or a newer toolchain. e.g. `rustup
   default beta`
@@ -18,6 +21,21 @@ To build embedded programs using this template you'll need:
 ``` console
 $ rustup target add thumbv6m-none-eabi thumbv7m-none-eabi thumbv7em-none-eabi thumbv7em-none-eabihf
 ```
+- `openocd` to be able to debug the code on the SoC and to be able to flash the final program for usage
+
+- The arm-none-eabi toolchain in particlar the `arm-none-eabi-gdb` for debbuing 
+
+- You will also need to clone the atsame70-rust repo (https://github.com/ju6ge/atsame70-rust) since it is very new and isn't yet a crate 
+
+# Building and Debugging 
+
+To comfortably test your code start the openocd server:
+
+``` console
+$ openocd -f openocd.cfg
+```
+
+Now running `cargo run` will result in a gdb session being attached and the newly compiled code to be loaded. 
 
 # License
 
