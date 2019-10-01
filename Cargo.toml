@@ -21,6 +21,9 @@ name = "cortex-test"
 test = false
 bench = false
 
+[profile.dev]
+debug = true # symbols are nice and they don't increase the size on Flash
+
 [profile.release]
 codegen-units = 1 # better optimizations
 debug = true # symbols are nice and they don't increase the size on Flash
