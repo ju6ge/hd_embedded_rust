@@ -21,24 +21,28 @@ fn system_clock_init( periph: &mut Peripherals ) {
 	if pmc.ckgr_mor.read().moscsel().bit_is_clear() {
 		pmc.ckgr_mor.write( |w| {
 			w.key().passwd();
-			unsafe {w.moscxtst().bits(8)};
+			unsafe {w.moscxtst().bits(255)};
 			w.moscrcen().set_bit();
 			w.moscxten().set_bit()
 		});
 		while pmc.pmc_sr.read().moscxts().bit_is_clear() {
 		}
-		hprintln!("Enabled main crystal oscillator!");
 	}
 
 	// switch to crystal oscillator
-	//pmc.ckgr_mor.write( |w| w.moscsel().set_bit() );
-	//while pmc.pmc_sr.read().moscsels().bit_is_clear() {
-	//}
+	pmc.ckgr_mor.write( |w| {
+		w.key().passwd();
+		unsafe {w.moscxtst().bits(255)};
+		w.moscrcen().set_bit();
+		w.moscxten().set_bit();
+		w.moscsel().set_bit()
+	});
+	while pmc.pmc_sr.read().moscsels().bit_is_clear() {
+	}
 
 	pmc.pmc_mckr.write( |w| w.css().main_clk() );
 	while pmc.pmc_sr.read().mckrdy().bit_is_clear() {
 	}
-	hprintln!("Switched to main crystal oscillator!");
 
 	//enable PLLA
 	pmc.ckgr_pllar.write( |w| {
@@ -50,15 +54,6 @@ fn system_clock_init( periph: &mut Peripherals ) {
 
 	while pmc.pmc_sr.read().locka().bit_is_clear() {
 	}
-
-	pmc.pmc_mckr.write( |w| {
-		w.mdiv().bits(1);
-		w.css().main_clk();
-		w.pres().clk_2()
-	});
-	while pmc.pmc_sr.read().mckrdy().bit_is_clear() {
-	}
-	hprintln!("Enabled plla!");
 
 	pmc.pmc_mckr.write( |w| {
 		w.mdiv().bits(1);
@@ -81,26 +76,31 @@ fn system_clock_init( periph: &mut Peripherals ) {
 	});
 
 	pmc.pmc_scer.write( |w| w.usbclk().set_bit() );
-	hprintln!("Enabled usb!");
 }
 
 #[entry]
 fn main() -> ! {
 	let mut peripherals = Peripherals::take().unwrap();
 
-	hprintln!("Start init clock!");
 	system_clock_init(&mut peripherals);
 	hprintln!("Clock init finished!");
 
+	let wdt = peripherals.WDT;
+	wdt.wdt_mr.write( |w| w.wddis().set_bit() );
+
 	//enable PIOB in PMC
-	//let pmc = peripherals.PMC;
-	//pmc.pmc_pcer0.write( |w| { w.pid11().set_bit() });
+	let pmc = peripherals.PMC;
+	pmc.pmc_pcer0.write( |w| { w.pid11().set_bit() });
 
-	//let piob = peripherals.PIOB;
-	////set p5 to output pin
+	let piob = peripherals.PIOB;
 
-	////set led PB5 on
-	//piob.pio_oer.write( |w| { w.p5().set_bit() } );
+	//set p5 to output pin
+	piob.pio_per.write( |w| { w.p5().set_bit() } );
+	piob.pio_oer.write( |w| { w.p5().set_bit() } );
+	
+	//set led PB5 on
+	piob.pio_sodr.write( |w| { w.p5().set_bit() } );
+	hprintln!("Led should be on now!");
 
 	loop {
 		// your code goes here
