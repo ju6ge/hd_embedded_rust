@@ -5,17 +5,20 @@
 extern crate panic_halt; // you can put a breakpoint on `rust_begin_unwind` to catch panics
 // extern crate panic_abort; // requires nightly
 // extern crate panic_itm; // logs messages over ITM; requires ITM support
-// extern crate panic_semihosting; // logs messages to the host stderr; requires a debugger
+//extern crate panic_semihosting; // logs messages to the host stderr; requires a debugger
 
 use cortex_m::asm;
 use cortex_m_rt::entry;
 use cortex_m_semihosting::{hprintln};
 
-use atsams70q21::{Peripherals};
+use atsame70q21::{Peripherals, PMC, PIOB};
 
 
 fn system_clock_init( periph: &mut Peripherals ) {
 	let pmc = &periph.PMC;
+
+	let efc = &periph.EFC;
+	efc.eefc_fmr.write( |w| unsafe{ w.fws().bits(5) } );
 
 	//enable main crystal oscillator
 	if pmc.ckgr_mor.read().moscsel().bit_is_clear() {
@@ -51,8 +54,15 @@ fn system_clock_init( periph: &mut Peripherals ) {
 		unsafe { w.diva().bits(1) };
 		unsafe { w.pllacount().bits(63) }
 	});
-
 	while pmc.pmc_sr.read().locka().bit_is_clear() {
+	}
+
+	pmc.pmc_mckr.write( |w| {
+		w.mdiv().bits(1);
+		w.pres().clk_2();
+		w.css().main_clk()
+		});
+	while pmc.pmc_sr.read().mckrdy().bit_is_clear() {
 	}
 
 	pmc.pmc_mckr.write( |w| {
@@ -82,27 +92,27 @@ fn system_clock_init( periph: &mut Peripherals ) {
 fn main() -> ! {
 	let mut peripherals = Peripherals::take().unwrap();
 
-	system_clock_init(&mut peripherals);
-	hprintln!("Clock init finished!");
-
-	let wdt = peripherals.WDT;
-	wdt.wdt_mr.write( |w| w.wddis().set_bit() );
+	//system_clock_init(&mut peripherals);
 
 	//enable PIOB in PMC
-	let pmc = peripherals.PMC;
-	pmc.pmc_pcer0.write( |w| { w.pid11().set_bit() });
+	//let pmc = peripherals.PMC;
+	//pmc.pmc_pcer0.write( |w| {
+	//	w.pid12().clear_bit()
+	//	});
 
-	let piob = peripherals.PIOB;
+	let pioc = peripherals.PIOC;
 
 	//set p5 to output pin
-	piob.pio_per.write( |w| { w.p5().set_bit() } );
-	piob.pio_oer.write( |w| { w.p5().set_bit() } );
+	pioc.pio_per.write( |w| { w.p10().set_bit() } );
+	pioc.pio_oer.write( |w| { w.p10().set_bit() } );
+	pioc.pio_per.write( |w| { w.p19().set_bit() } );
+	pioc.pio_oer.write( |w| { w.p19().set_bit() } );
 	
 	//set led PB5 on
-	piob.pio_sodr.write( |w| { w.p5().set_bit() } );
-	hprintln!("Led should be on now!");
 
 	loop {
 		// your code goes here
+		pioc.pio_codr.write( |w| { w.p10().set_bit() } );
+		pioc.pio_sodr.write( |w| { w.p19().set_bit() } );
 	}
 }

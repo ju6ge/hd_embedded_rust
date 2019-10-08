@@ -1,0 +1,14 @@
+[package]
+name = "atsame70q21"
+description = "Peripheral access API for ATSAME70Q21 microcontrollers (gererated using svd2rust)"
+version = "0.0.1"
+authors = ["Felix Richter <judge@felixrichter.tech>"]
+
+[dependencies]
+bare-metal = "0.2"
+cortex-m = "0.6.0"
+cortex-m-rt = "0.6.10"
+vcell = "0.1"
+
+[features]
+rt = ["cortex-m-rt/device"]

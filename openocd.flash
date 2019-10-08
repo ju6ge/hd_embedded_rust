@@ -69,7 +69,7 @@ mww $SAME70_EEFC_FMR $SAME70_EEFC_FMR_FWS;		# flash wait states
 #flash erase_sector 0 0 $SAME70_MAX_FLASH_SECTOR_NUMBER
 #sleep 1000
 #echo -n "write flash start\n "
-flash write_image erase unlock ../build/cortex_test.bin  0x00400000
+flash write_image erase unlock target/thumbv7em-none-eabihf/release/cortex-test.bin 0x00400000
 
 echo -n "enable boot from flash\n "
 mww $SAME70_EFC_FCR  $SAME70_SET_GPNVM_BIT1; # enable boot from flash
