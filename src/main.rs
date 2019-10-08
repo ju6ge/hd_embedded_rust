@@ -59,14 +59,6 @@ fn system_clock_init( periph: &mut Peripherals ) {
 
 	pmc.pmc_mckr.write( |w| {
 		w.mdiv().bits(1);
-		w.pres().clk_2();
-		w.css().main_clk()
-		});
-	while pmc.pmc_sr.read().mckrdy().bit_is_clear() {
-	}
-
-	pmc.pmc_mckr.write( |w| {
-		w.mdiv().bits(1);
 		w.css().plla_clk();
 		w.pres().clk_2()
 	});
@@ -92,13 +84,13 @@ fn system_clock_init( periph: &mut Peripherals ) {
 fn main() -> ! {
 	let mut peripherals = Peripherals::take().unwrap();
 
-	//system_clock_init(&mut peripherals);
+	system_clock_init(&mut peripherals);
 
 	//enable PIOB in PMC
-	//let pmc = peripherals.PMC;
-	//pmc.pmc_pcer0.write( |w| {
-	//	w.pid12().clear_bit()
-	//	});
+	let pmc = peripherals.PMC;
+	pmc.pmc_pcer0.write( |w| {
+		w.pid12().clear_bit()
+		});
 
 	let pioc = peripherals.PIOC;
 
