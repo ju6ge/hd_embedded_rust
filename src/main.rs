@@ -13,98 +13,66 @@ use cortex_m_semihosting::{hprintln};
 
 use atsame70q21::{Peripherals, PMC, PIOB};
 
+mod system_init;
 
-fn system_clock_init( periph: &mut Peripherals ) {
-	let pmc = &periph.PMC;
-
-	let efc = &periph.EFC;
-	efc.eefc_fmr.write( |w| unsafe{ w.fws().bits(5) } );
-
-	//enable main crystal oscillator
-	if pmc.ckgr_mor.read().moscsel().bit_is_clear() {
-		pmc.ckgr_mor.write( |w| {
-			w.key().passwd();
-			unsafe {w.moscxtst().bits(255)};
-			w.moscrcen().set_bit();
-			w.moscxten().set_bit()
-		});
-		while pmc.pmc_sr.read().moscxts().bit_is_clear() {
-		}
+fn delay20ns( ns20: i32 ) {
+	for _i in 0..ns20 {
+		asm::nop();
+		asm::nop();
+		asm::nop();
+		asm::nop();
+		asm::nop();
+		asm::nop();
+		asm::nop();
+		asm::nop();
+		asm::nop();
+		asm::nop();
 	}
+}
 
-	// switch to crystal oscillator
-	pmc.ckgr_mor.write( |w| {
-		w.key().passwd();
-		unsafe {w.moscxtst().bits(255)};
-		w.moscrcen().set_bit();
-		w.moscxten().set_bit();
-		w.moscsel().set_bit()
-	});
-	while pmc.pmc_sr.read().moscsels().bit_is_clear() {
+fn delayus( us: i32 ) {
+	for _i in 0..us {
+		delay20ns(50);
 	}
+}
 
-	pmc.pmc_mckr.write( |w| w.css().main_clk() );
-	while pmc.pmc_sr.read().mckrdy().bit_is_clear() {
+fn delayms( ms: i32 ) {
+	for _i in 0..ms {
+		delayus(1000);
 	}
-
-	//enable PLLA
-	pmc.ckgr_pllar.write( |w| {
-		w.one().set_bit();
-		unsafe { w.mula().bits(49) };
-		unsafe { w.diva().bits(1) };
-		unsafe { w.pllacount().bits(63) }
-	});
-	while pmc.pmc_sr.read().locka().bit_is_clear() {
-	}
-
-	pmc.pmc_mckr.write( |w| {
-		w.mdiv().bits(1);
-		w.css().plla_clk();
-		w.pres().clk_2()
-	});
-	while pmc.pmc_sr.read().mckrdy().bit_is_clear() {
-	}
-	
-	pmc.ckgr_uckr.write( |w| {
-		w.upllen().set_bit();
-		unsafe{ w.upllcount().bits(3) }
-	});
-	while pmc.pmc_sr.read().locku().bit_is_clear() {
-	}
-
-	pmc.pmc_usb.write( |w| {
-		w.usbs().set_bit();
-		unsafe { w.usbdiv().bits(0) }
-	});
-
-	pmc.pmc_scer.write( |w| w.usbclk().set_bit() );
 }
 
 #[entry]
 fn main() -> ! {
 	let mut peripherals = Peripherals::take().unwrap();
 
-	system_clock_init(&mut peripherals);
+	system_init::system_clock_init(&mut peripherals);
 
-	//enable PIOB in PMC
+	//enable PIOC in PMC
 	let pmc = peripherals.PMC;
 	pmc.pmc_pcer0.write( |w| {
-		w.pid12().clear_bit()
+		w.pid12().set_bit()
 		});
 
 	let pioc = peripherals.PIOC;
 
-	//set p5 to output pin
+	//enable pins to be controlled by pio and set to output mode
+	pioc.pio_per.write( |w| { w.p9().set_bit() } );
+	pioc.pio_oer.write( |w| { w.p9().set_bit() } );
 	pioc.pio_per.write( |w| { w.p10().set_bit() } );
 	pioc.pio_oer.write( |w| { w.p10().set_bit() } );
 	pioc.pio_per.write( |w| { w.p19().set_bit() } );
 	pioc.pio_oer.write( |w| { w.p19().set_bit() } );
-	
-	//set led PB5 on
 
+	//blink
 	loop {
-		// your code goes here
-		pioc.pio_codr.write( |w| { w.p10().set_bit() } );
+		pioc.pio_sodr.write( |w| { w.p10().set_bit() } );
 		pioc.pio_sodr.write( |w| { w.p19().set_bit() } );
+		pioc.pio_codr.write( |w| { w.p9().set_bit() } );
+    	delayms(1000);
+		pioc.pio_codr.write( |w| { w.p10().set_bit() } );
+		pioc.pio_codr.write( |w| { w.p19().set_bit() } );
+		pioc.pio_sodr.write( |w| { w.p9().set_bit() } );
+    	delayms(1000);
 	}
 }
