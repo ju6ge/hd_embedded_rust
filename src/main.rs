@@ -11,35 +11,29 @@ use cortex_m::asm;
 use cortex_m_rt::entry;
 use cortex_m_semihosting::{hprintln};
 
-use atsame70q21::{Peripherals, PMC, PIOB};
+use atsame70q21::{Peripherals};
 
 mod system_init;
+mod util;
 
-fn delay20ns( ns20: i32 ) {
-	for _i in 0..ns20 {
-		asm::nop();
-		asm::nop();
-		asm::nop();
-		asm::nop();
-		asm::nop();
-		asm::nop();
-		asm::nop();
-		asm::nop();
-		asm::nop();
-		asm::nop();
-	}
+fn leds_on(peripherals : &Peripherals) {
+	let pioc = &peripherals.PIOC;
+
+	pioc.pio_sodr.write( |w| {
+		w.p10().set_bit();
+		w.p19().set_bit()
+	});
+	pioc.pio_codr.write( |w| { w.p9().set_bit() } );
 }
 
-fn delayus( us: i32 ) {
-	for _i in 0..us {
-		delay20ns(50);
-	}
-}
+fn leds_off(peripherals : &Peripherals) {
+	let pioc = &peripherals.PIOC;
 
-fn delayms( ms: i32 ) {
-	for _i in 0..ms {
-		delayus(1000);
-	}
+	pioc.pio_codr.write( |w| {
+		w.p10().set_bit();
+		w.p19().set_bit()
+	});
+	pioc.pio_sodr.write( |w| { w.p9().set_bit() } );
 }
 
 #[entry]
@@ -47,32 +41,35 @@ fn main() -> ! {
 	let mut peripherals = Peripherals::take().unwrap();
 
 	system_init::system_clock_init(&mut peripherals);
+	hprintln!("System clock initialized!");
 
 	//enable PIOC in PMC
-	let pmc = peripherals.PMC;
+	let pmc = &peripherals.PMC;
 	pmc.pmc_pcer0.write( |w| {
 		w.pid12().set_bit()
-		});
+	});
 
-	let pioc = peripherals.PIOC;
+	let wdt = &peripherals.WDT;
+	wdt.wdt_mr.write( |w| w.wddis().set_bit() );
 
+	let pioc = &peripherals.PIOC;
 	//enable pins to be controlled by pio and set to output mode
-	pioc.pio_per.write( |w| { w.p9().set_bit() } );
-	pioc.pio_oer.write( |w| { w.p9().set_bit() } );
-	pioc.pio_per.write( |w| { w.p10().set_bit() } );
-	pioc.pio_oer.write( |w| { w.p10().set_bit() } );
-	pioc.pio_per.write( |w| { w.p19().set_bit() } );
-	pioc.pio_oer.write( |w| { w.p19().set_bit() } );
+	pioc.pio_per.write( |w| {
+		w.p9().set_bit();
+		w.p10().set_bit();
+		w.p19().set_bit()
+	});
+	pioc.pio_oer.write( |w| {
+		w.p9().set_bit();
+		w.p10().set_bit();
+		w.p19().set_bit()
+	});
 
 	//blink
 	loop {
-		pioc.pio_sodr.write( |w| { w.p10().set_bit() } );
-		pioc.pio_sodr.write( |w| { w.p19().set_bit() } );
-		pioc.pio_codr.write( |w| { w.p9().set_bit() } );
-    	delayms(1000);
-		pioc.pio_codr.write( |w| { w.p10().set_bit() } );
-		pioc.pio_codr.write( |w| { w.p19().set_bit() } );
-		pioc.pio_sodr.write( |w| { w.p9().set_bit() } );
-    	delayms(1000);
+    	leds_off(&peripherals);
+    	util::delayms(1);
+		leds_on(&peripherals);
+    	util::delayms(1);
 	}
 }

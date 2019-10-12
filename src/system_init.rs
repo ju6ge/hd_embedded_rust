@@ -10,7 +10,7 @@ pub fn system_clock_init( periph: &mut Peripherals ) {
 	if pmc.ckgr_mor.read().moscsel().bit_is_clear() {
 		pmc.ckgr_mor.write( |w| {
 			w.key().passwd();
-			unsafe {w.moscxtst().bits(255)};
+			unsafe {w.moscxtst().bits(8)};
 			w.moscrcen().set_bit();
 			w.moscxten().set_bit()
 		});
@@ -21,8 +21,8 @@ pub fn system_clock_init( periph: &mut Peripherals ) {
 	// switch to crystal oscillator
 	pmc.ckgr_mor.write( |w| {
 		w.key().passwd();
-		unsafe {w.moscxtst().bits(255)};
-		w.moscrcen().set_bit();
+		unsafe {w.moscxtst().bits(8)};
+		w.moscrcen().clear_bit();
 		w.moscxten().set_bit();
 		w.moscsel().set_bit()
 	});
@@ -44,7 +44,7 @@ pub fn system_clock_init( periph: &mut Peripherals ) {
 	}
 
 	pmc.pmc_mckr.write( |w| {
-		w.mdiv().bits(1);
+		w.mdiv().pck_div2();
 		w.css().plla_clk();
 		w.pres().clk_2()
 	});
