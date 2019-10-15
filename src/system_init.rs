@@ -1,32 +1,50 @@
 use atsame70q21::{Peripherals, PMC, PIOB};
+use cortex_m_semihosting::{hprintln};
+
+use crate::util;
 
 pub fn system_clock_init( periph: &mut Peripherals ) {
 	let pmc = &periph.PMC;
 
 	let efc = &periph.EFC;
-	efc.eefc_fmr.write( |w| unsafe{ w.fws().bits(5) } );
+	efc.eefc_fmr.write( |w| {
+		unsafe{ w.fws().bits(5) };
+		w.cloe().set_bit();
+		w.scod().clear_bit()
+	});
 
 	//enable main crystal oscillator
 	if pmc.ckgr_mor.read().moscsel().bit_is_clear() {
 		pmc.ckgr_mor.write( |w| {
 			w.key().passwd();
-			unsafe {w.moscxtst().bits(8)};
+			unsafe {w.moscxtst().bits(100)};
 			w.moscrcen().set_bit();
 			w.moscxten().set_bit()
 		});
 		while pmc.pmc_sr.read().moscxts().bit_is_clear() {
 		}
 	}
+	//measure
+	pmc.ckgr_mcfr.write( |w| {
+		w.ccss().set_bit();
+		w.rcmeas().set_bit()
+	});
+	while pmc.ckgr_mcfr.read().mainfrdy().bit_is_clear() {
+	}
+
+	let mainf = pmc.ckgr_mcfr.read().mainf().bits();
 
 	// switch to crystal oscillator
-	pmc.ckgr_mor.write( |w| {
-		w.key().passwd();
-		unsafe {w.moscxtst().bits(8)};
-		w.moscrcen().clear_bit();
-		w.moscxten().set_bit();
-		w.moscsel().set_bit()
-	});
-	while pmc.pmc_sr.read().moscsels().bit_is_clear() {
+	if mainf > 0 {
+		pmc.ckgr_mor.write( |w| {
+			w.key().passwd();
+			unsafe {w.moscxtst().bits(100)};
+			w.moscrcen().set_bit();
+			w.moscxten().set_bit();
+			w.moscsel().set_bit()
+		});
+		while pmc.pmc_sr.read().moscsels().bit_is_clear() {
+		}
 	}
 
 	pmc.pmc_mckr.write( |w| w.css().main_clk() );
@@ -45,8 +63,15 @@ pub fn system_clock_init( periph: &mut Peripherals ) {
 
 	pmc.pmc_mckr.write( |w| {
 		w.mdiv().pck_div2();
-		w.css().plla_clk();
+		w.css().main_clk();
 		w.pres().clk_2()
+	});
+	while pmc.pmc_sr.read().mckrdy().bit_is_clear() {
+	}
+	pmc.pmc_mckr.write( |w| {
+		w.mdiv().pck_div2();
+		w.pres().clk_2();
+		w.css().plla_clk()
 	});
 	while pmc.pmc_sr.read().mckrdy().bit_is_clear() {
 	}

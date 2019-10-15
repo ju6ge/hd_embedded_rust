@@ -2,11 +2,14 @@ use cortex_m::asm;
 
 pub fn delay20ns( ns20: i32 ) {
 	for _i in 0..ns20 {
-		asm::nop();
-		asm::nop();
-		asm::nop();
-		asm::nop();
-		asm::nop();
+		unsafe {asm!("nop");}
+		unsafe {asm!("nop");}
+		unsafe {asm!("nop");}
+		unsafe {asm!("nop");}
+		unsafe {asm!("nop");}
+		unsafe {asm!("nop");}
+		unsafe {asm!("nop");}
+		unsafe {asm!("nop");}
 	}
 }
 

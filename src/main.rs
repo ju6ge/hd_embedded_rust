@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(asm)]
 
 // pick a panicking behavior
 extern crate panic_halt; // you can put a breakpoint on `rust_begin_unwind` to catch panics
@@ -67,9 +68,9 @@ fn main() -> ! {
 
 	//blink
 	loop {
-    	leds_off(&peripherals);
-    	util::delayms(1);
 		leds_on(&peripherals);
-    	util::delayms(1);
+    	util::delayms(10);
+    	leds_off(&peripherals);
+    	util::delayms(10);
 	}
 }
