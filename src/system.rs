@@ -1,7 +1,4 @@
-use atsame70q21::{Peripherals, PMC, PIOB};
-use cortex_m_semihosting::{hprintln};
-
-use crate::util;
+use atsame70q21::{Peripherals, PMC, PIOB, RTT};
 
 pub fn system_clock_init( periph: &mut Peripherals ) {
 	let pmc = &periph.PMC;
@@ -89,4 +86,16 @@ pub fn system_clock_init( periph: &mut Peripherals ) {
 	});
 
 	pmc.pmc_scer.write( |w| w.usbclk().set_bit() );
+}
+
+pub fn start_rtt(rtt : &RTT) {
+	rtt.rtt_mr.write(|w| {
+		unsafe {w.rtpres().bits(0);}
+		w.rttdis().clear_bit();
+		w.rttrst().set_bit()
+	});
+}
+
+pub fn read_rtt(rtt : &RTT) -> u32 {
+	rtt.rtt_vr.read().crtv().bits()
 }

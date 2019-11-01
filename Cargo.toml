@@ -22,7 +22,6 @@ bench = false
 [profile.dev]
 debug = true # symbols are nice and they don't increase the size on Flash
 opt-level = "z"
-lto = true # better optimizations
 
 [profile.release]
 debug = true # symbols are nice and they don't increase the size on Flash
