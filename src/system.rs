@@ -88,9 +88,9 @@ pub fn system_clock_init( periph: &mut Peripherals ) {
 	pmc.pmc_scer.write( |w| w.usbclk().set_bit() );
 }
 
-pub fn start_rtt(rtt : &RTT) {
+pub fn start_rtt(rtt : &RTT, pres : u16) {
 	rtt.rtt_mr.write(|w| {
-		unsafe {w.rtpres().bits(0);}
+		unsafe {w.rtpres().bits(pres);}
 		w.rttdis().clear_bit();
 		w.rttrst().set_bit()
 	});

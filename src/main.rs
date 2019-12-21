@@ -67,16 +67,16 @@ fn main() -> ! {
 		w.p19().set_bit()
 	});
 
-	system::start_rtt(&peripherals.RTT);
-    util::delay20ns(50);
-	let time = system::read_rtt(&peripherals.RTT);
-	debug!("{}", time);
 
 	//blink
 	loop {
 		leds_on(&peripherals);
-    	util::delayms(100);
+		system::start_rtt(&peripherals.RTT, 0x8000);
+		while (system::read_rtt(&peripherals.RTT) < 1) {
+		};
     	leds_off(&peripherals);
-    	util::delayms(100);
+		system::start_rtt(&peripherals.RTT, 0x8000);
+		while (system::read_rtt(&peripherals.RTT) < 1) {
+		};
 	}
 }
