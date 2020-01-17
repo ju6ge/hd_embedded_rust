@@ -1,6 +1,6 @@
-use atsame70q21::{Peripherals, PMC, PIOB, RTT};
+use atsame70q21::{Peripherals, RTT};
 
-pub fn system_clock_init( periph: &mut Peripherals ) {
+pub fn system_clock_init( periph: & Peripherals ) {
 	let pmc = &periph.PMC;
 
 	let efc = &periph.EFC;
@@ -88,7 +88,8 @@ pub fn system_clock_init( periph: &mut Peripherals ) {
 	pmc.pmc_scer.write( |w| w.usbclk().set_bit() );
 }
 
-pub fn start_rtt(rtt : &RTT, pres : u16) {
+pub fn start_rtt(periph: & Peripherals, pres : u16) {
+	let rtt = &periph.RTT;
 	rtt.rtt_mr.write(|w| {
 		unsafe {w.rtpres().bits(pres);}
 		w.rttdis().clear_bit();
@@ -96,6 +97,7 @@ pub fn start_rtt(rtt : &RTT, pres : u16) {
 	});
 }
 
-pub fn read_rtt(rtt : &RTT) -> u32 {
+pub fn read_rtt(periph: & Peripherals) -> u32 {
+	let rtt = &periph.RTT;
 	rtt.rtt_vr.read().crtv().bits()
 }

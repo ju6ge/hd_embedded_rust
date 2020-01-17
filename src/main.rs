@@ -3,16 +3,18 @@
 #![feature(asm)]
 
 // pick a panicking behavior
-//#[cfg(not(debug_assertions))]
 extern crate panic_halt;
 
 //#[cfg(debug_assertions)]
-//osting; // logs messages to the host stderr; requires a debugger
+//extern crate panic_semihosting; // logs messages to the host stderr; requires a debugger
 
 use cortex_m_rt::entry;
 use cortex_m_semihosting::{hprintln};
 
 use atsame70q21::{Peripherals};
+
+use hal::serial::Serial0;
+use embedded_hal::serial::Write;
 
 mod system;
 mod util;
@@ -71,12 +73,8 @@ fn main() -> ! {
 	//blink
 	loop {
 		leds_on(&peripherals);
-		system::start_rtt(&peripherals.RTT, 0x8000);
-		while (system::read_rtt(&peripherals.RTT) < 1) {
-		};
+		util::delayms(&peripherals, 500);
     	leds_off(&peripherals);
-		system::start_rtt(&peripherals.RTT, 0x8000);
-		while (system::read_rtt(&peripherals.RTT) < 1) {
-		};
+		util::delayms(&peripherals, 500);
 	}
 }

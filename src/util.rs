@@ -1,26 +1,9 @@
-use cortex_m::asm;
+use atsame70q21::{Peripherals};
 
-pub fn delay20ns( ns20: i32 ) {
-	for _i in 0..ns20 {
-		unsafe {asm!("nop");}
-		unsafe {asm!("nop");}
-		unsafe {asm!("nop");}
-		unsafe {asm!("nop");}
-		unsafe {asm!("nop");}
-		unsafe {asm!("nop");}
-		unsafe {asm!("nop");}
-		unsafe {asm!("nop");}
-	}
-}
+use crate::system;
 
-pub fn delayus( us: i32 ) {
-	for _i in 0..us {
-		delay20ns(50);
-	}
-}
-
-pub fn delayms( ms: i32 ) {
-	for _i in 0..ms {
-		delayus(1000);
-	}
+pub fn delayms(periph : &Peripherals, ms: u32 ) {
+	system::start_rtt(periph, 0x20);
+	while system::read_rtt(periph) < ms {
+	};
 }
