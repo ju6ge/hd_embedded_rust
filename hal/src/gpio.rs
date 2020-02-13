@@ -51,6 +51,7 @@ macro_rules! gpio {
 	]) => {
 		/// PIO
 		pub mod $piox {
+			use core::convert::Infallible;
 			use core::marker::PhantomData;
 
 			use embedded_hal::digital::v2::OutputPin;
@@ -285,22 +286,131 @@ macro_rules! gpio {
 				}
 
 				impl<MODE> OutputPin for $PXi<Output<MODE>> {
-					fn set_high(&mut self) {
+					type Error = Infallible;
+
+					fn set_high(&mut self) -> Result<(), Self::Error> {
 						//NOTE (unsafe) atomic write to a stateless register
-						unsafe{ (*$PIOX::ptr()).pio_sodr.write(|w| w.bits(1 << $i ))}
+						Ok(unsafe{ (*$PIOX::ptr()).pio_sodr.write(|w| w.bits(1 << $i ))})
 					}
-					fn set_low(&mut self) {
+					fn set_low(&mut self) -> Result<(), Self::Error> {
 						//NOTE (unsafe) atomic write to a stateless register
-						unsafe{ (*$PIOX::ptr()).pio_codr.write(|w| w.bits(1 << $i ))}
+						Ok(unsafe{ (*$PIOX::ptr()).pio_codr.write(|w| w.bits(1 << $i ))})
 					}
 				}
 			)+
 		}
 	}
 }
+gpio!(
+	PIOA, pioa, pioa, pid10, Px, [
+		P0: (p0, 0, Input<Floating>, PMD0),
+		P1: (p1, 1, Input<Floating>, PMD0),
+		P2: (p2, 2, Input<Floating>, PMD0),
+		P3: (p3, 3, Input<Floating>, PMD0),
+		P4: (p4, 4, Input<Floating>, PMD0),
+		P5: (p5, 5, Input<Floating>, PMD0),
+		P6: (p6, 6, Input<Floating>, PMD0),
+		P7: (p7, 7, Input<Floating>, PMD0),
+		P8: (p8, 8, Input<Floating>, PMD0),
+		P9: (p9, 9, Input<Floating>, PMD0),
+		P10: (p10, 10, Input<Floating>, PMD0),
+		P11: (p11, 11, Input<Floating>, PMD0),
+		P12: (p12, 12, Input<Floating>, PMD0),
+		P13: (p13, 13, Input<Floating>, PMD0),
+		P14: (p14, 14, Input<Floating>, PMD0),
+		P15: (p15, 15, Input<Floating>, PMD0),
+		P16: (p16, 16, Input<Floating>, PMD0),
+		P17: (p17, 17, Input<Floating>, PMD0),
+		P18: (p18, 18, Input<Floating>, PMD0),
+		P19: (p19, 19, Input<Floating>, PMD0),
+		P20: (p20, 20, Input<Floating>, PMD0),
+		P21: (p21, 21, Input<Floating>, PMD0),
+		P22: (p22, 22, Input<Floating>, PMD0),
+		P23: (p23, 23, Input<Floating>, PMD0),
+		P24: (p24, 24, Input<Floating>, PMD0),
+		P25: (p25, 25, Input<Floating>, PMD0),
+		P26: (p26, 26, Input<Floating>, PMD0),
+		P27: (p27, 27, Input<Floating>, PMD0),
+		P28: (p28, 28, Input<Floating>, PMD0),
+		P29: (p29, 29, Input<Floating>, PMD0),
+		P30: (p30, 30, Input<Floating>, PMD0),
+		P31: (p31, 31, Input<Floating>, PMD0),
+	]);
+
+gpio!(
+	PIOB, piob, pioa, pid11, Px, [
+		P0: (p0, 0, Input<Floating>, PMD0),
+		P1: (p1, 1, Input<Floating>, PMD0),
+		P2: (p2, 2, Input<Floating>, PMD0),
+		P3: (p3, 3, Input<Floating>, PMD0),
+		P4: (p4, 4, Input<Floating>, PMD0),
+		P5: (p5, 5, Input<Floating>, PMD0),
+		P6: (p6, 6, Input<Floating>, PMD0),
+		P7: (p7, 7, Input<Floating>, PMD0),
+		P8: (p8, 8, Input<Floating>, PMD0),
+		P9: (p9, 9, Input<Floating>, PMD0),
+		P10: (p10, 10, Input<Floating>, PMD0),
+		P11: (p11, 11, Input<Floating>, PMD0),
+		P12: (p12, 12, Input<Floating>, PMD0),
+		P13: (p13, 13, Input<Floating>, PMD0),
+		P14: (p14, 14, Input<Floating>, PMD0),
+		P15: (p15, 15, Input<Floating>, PMD0),
+		P16: (p16, 16, Input<Floating>, PMD0),
+		P17: (p17, 17, Input<Floating>, PMD0),
+		P18: (p18, 18, Input<Floating>, PMD0),
+		P19: (p19, 19, Input<Floating>, PMD0),
+		P20: (p20, 20, Input<Floating>, PMD0),
+		P21: (p21, 21, Input<Floating>, PMD0),
+		P22: (p22, 22, Input<Floating>, PMD0),
+		P23: (p23, 23, Input<Floating>, PMD0),
+		P24: (p24, 24, Input<Floating>, PMD0),
+		P25: (p25, 25, Input<Floating>, PMD0),
+		P26: (p26, 26, Input<Floating>, PMD0),
+		P27: (p27, 27, Input<Floating>, PMD0),
+		P28: (p28, 28, Input<Floating>, PMD0),
+		P29: (p29, 29, Input<Floating>, PMD0),
+		P30: (p30, 30, Input<Floating>, PMD0),
+		P31: (p31, 31, Input<Floating>, PMD0),
+	]);
 
 gpio!(
 	PIOC, pioc, pioa, pid12, Px, [
+		P0: (p0, 0, Input<Floating>, PMD0),
+		P1: (p1, 1, Input<Floating>, PMD0),
+		P2: (p2, 2, Input<Floating>, PMD0),
+		P3: (p3, 3, Input<Floating>, PMD0),
+		P4: (p4, 4, Input<Floating>, PMD0),
+		P5: (p5, 5, Input<Floating>, PMD0),
+		P6: (p6, 6, Input<Floating>, PMD0),
+		P7: (p7, 7, Input<Floating>, PMD0),
+		P8: (p8, 8, Input<Floating>, PMD0),
+		P9: (p9, 9, Input<Floating>, PMD0),
+		P10: (p10, 10, Input<Floating>, PMD0),
+		P11: (p11, 11, Input<Floating>, PMD0),
+		P12: (p12, 12, Input<Floating>, PMD0),
+		P13: (p13, 13, Input<Floating>, PMD0),
+		P14: (p14, 14, Input<Floating>, PMD0),
+		P15: (p15, 15, Input<Floating>, PMD0),
+		P16: (p16, 16, Input<Floating>, PMD0),
+		P17: (p17, 17, Input<Floating>, PMD0),
+		P18: (p18, 18, Input<Floating>, PMD0),
+		P19: (p19, 19, Input<Floating>, PMD0),
+		P20: (p20, 20, Input<Floating>, PMD0),
+		P21: (p21, 21, Input<Floating>, PMD0),
+		P22: (p22, 22, Input<Floating>, PMD0),
+		P23: (p23, 23, Input<Floating>, PMD0),
+		P24: (p24, 24, Input<Floating>, PMD0),
+		P25: (p25, 25, Input<Floating>, PMD0),
+		P26: (p26, 26, Input<Floating>, PMD0),
+		P27: (p27, 27, Input<Floating>, PMD0),
+		P28: (p28, 28, Input<Floating>, PMD0),
+		P29: (p29, 29, Input<Floating>, PMD0),
+		P30: (p30, 30, Input<Floating>, PMD0),
+		P31: (p31, 31, Input<Floating>, PMD0),
+	]);
+
+gpio!(
+	PIOD, piod, pioa, pid16, Px, [
 		P0: (p0, 0, Input<Floating>, PMD0),
 		P1: (p1, 1, Input<Floating>, PMD0),
 		P2: (p2, 2, Input<Floating>, PMD0),

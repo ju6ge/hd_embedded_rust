@@ -11,44 +11,27 @@ extern crate panic_halt;
 use cortex_m_rt::entry;
 use cortex_m_semihosting::{hprintln};
 
-use atsame70q21::{Peripherals};
+use hal::target_device;
+use hal::gpio::*;
 
-use hal::serial::Serial0;
-use embedded_hal::serial::Write;
+use embedded_hal::digital::v2::OutputPin;
+
+//use hal::serial::Serial0;
+//use embedded_hal::serial::Write;
 
 mod system;
 mod util;
 mod debug;
 
-fn leds_on(peripherals : &Peripherals) {
-	let pioc = &peripherals.PIOC;
-
-	pioc.pio_sodr.write( |w| {
-		w.p10().set_bit();
-		w.p19().set_bit()
-	});
-	pioc.pio_codr.write( |w| { w.p9().set_bit() } );
-}
-
-fn leds_off(peripherals : &Peripherals) {
-	let pioc = &peripherals.PIOC;
-
-	pioc.pio_codr.write( |w| {
-		w.p10().set_bit();
-		w.p19().set_bit()
-	});
-	pioc.pio_sodr.write( |w| { w.p9().set_bit() } );
-}
-
 #[entry]
 fn main() -> ! {
-	let mut peripherals = Peripherals::take().unwrap();
+	let mut peripherals = target_device::Peripherals::take().unwrap();
 
 	system::system_clock_init(&mut peripherals);
 	debug!("System clock initialized!");
 
 	//enable PIOC in PMC
-	let pmc = &peripherals.PMC;
+	let mut pmc = peripherals.PMC;
 	pmc.pmc_pcer0.write( |w| {
 		w.pid12().set_bit()
 	});
@@ -56,25 +39,17 @@ fn main() -> ! {
 	let wdt = &peripherals.WDT;
 	wdt.wdt_mr.write( |w| w.wddis().set_bit() );
 
-	let pioc = &peripherals.PIOC;
-	//enable pins to be controlled by pio and set to output mode
-	pioc.pio_per.write( |w| {
-		w.p9().set_bit();
-		w.p10().set_bit();
-		w.p19().set_bit()
-	});
-	pioc.pio_oer.write( |w| {
-		w.p9().set_bit();
-		w.p10().set_bit();
-		w.p19().set_bit()
-	});
-
+	let mut pioc = peripherals.PIOC.split(&mut pmc);
+	let mut pin0 = pioc.p19.into_open_drain_output(&mut pioc.per, &mut pioc.oer);
+	let mut pin1 = pioc.p10.into_open_drain_output(&mut pioc.per, &mut pioc.oer);
 
 	//blink
 	loop {
-		leds_on(&peripherals);
-		util::delayms(&peripherals, 500);
-    	leds_off(&peripherals);
-		util::delayms(&peripherals, 500);
+		pin0.set_high();
+		pin1.set_high();
+		util::delayms(500);
+		pin0.set_low();
+		pin1.set_low();
+		util::delayms(500);
 	}
 }

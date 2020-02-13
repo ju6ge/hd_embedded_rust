@@ -88,16 +88,18 @@ pub fn system_clock_init( periph: & Peripherals ) {
 	pmc.pmc_scer.write( |w| w.usbclk().set_bit() );
 }
 
-pub fn start_rtt(periph: & Peripherals, pres : u16) {
-	let rtt = &periph.RTT;
-	rtt.rtt_mr.write(|w| {
-		unsafe {w.rtpres().bits(pres);}
-		w.rttdis().clear_bit();
-		w.rttrst().set_bit()
-	});
+pub fn start_rtt(pres : u16) {
+	let rtt = RTT::ptr();
+	unsafe {
+		(*rtt).rtt_mr.write(|w| {
+			unsafe {w.rtpres().bits(pres);}
+			w.rttdis().clear_bit();
+			w.rttrst().set_bit()
+		});
+	}
 }
 
-pub fn read_rtt(periph: & Peripherals) -> u32 {
-	let rtt = &periph.RTT;
-	rtt.rtt_vr.read().crtv().bits()
+pub fn read_rtt() -> u32 {
+	let rtt = RTT::ptr();
+	unsafe{(*rtt).rtt_vr.read().crtv().bits()}
 }
