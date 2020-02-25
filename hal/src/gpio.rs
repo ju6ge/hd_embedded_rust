@@ -54,7 +54,8 @@ macro_rules! gpio {
 			use core::convert::Infallible;
 			use core::marker::PhantomData;
 
-			use embedded_hal::digital::v2::OutputPin;
+			use embedded_hal::digital::v2::{OutputPin, StatefulOutputPin, ToggleableOutputPin, InputPin};
+			use embedded_hal::digital::v2::toggleable;
 			use crate::target_device::{$PIOX, $pioy};
 
 			use crate::target_device::PMC;
@@ -215,7 +216,6 @@ macro_rules! gpio {
 			}
 
 
-			//Todo
 			$(
 				pub struct $PXi<MODE> {
 					_mode: PhantomData<MODE>,
@@ -297,6 +297,19 @@ macro_rules! gpio {
 						Ok(unsafe{ (*$PIOX::ptr()).pio_codr.write(|w| w.bits(1 << $i ))})
 					}
 				}
+
+				impl<MODE> StatefulOutputPin for $PXi<Output<MODE>> {
+					fn is_set_high(&self) -> Result<bool, Self::Error> {
+						//NOTE (unsafe) atomic read to a stateless register
+						Ok(unsafe{ (*$PIOX::ptr()).pio_odsr.read().$pxi().bit_is_set() } )
+					}
+					fn is_set_low(&self) -> Result<bool, Self::Error> {
+						//NOTE (unsafe) atomic write to a stateless register
+						Ok(unsafe{ (*$PIOX::ptr()).pio_odsr.read().$pxi().bit_is_clear() })
+					}
+				}
+
+				impl<MODE> toggleable::Default for $PXi<Output<MODE>> {}
 			)+
 		}
 	}

@@ -92,7 +92,7 @@ pub fn start_rtt(pres : u16) {
 	let rtt = RTT::ptr();
 	unsafe {
 		(*rtt).rtt_mr.write(|w| {
-			unsafe {w.rtpres().bits(pres);}
+			w.rtpres().bits(pres);
 			w.rttdis().clear_bit();
 			w.rttrst().set_bit()
 		});

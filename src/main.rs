@@ -15,6 +15,7 @@ use hal::target_device;
 use hal::gpio::*;
 
 use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::digital::v2::ToggleableOutputPin;
 
 //use hal::serial::Serial0;
 //use embedded_hal::serial::Write;
@@ -45,11 +46,8 @@ fn main() -> ! {
 
 	//blink
 	loop {
-		pin0.set_high();
-		pin1.set_high();
-		util::delayms(500);
-		pin0.set_low();
-		pin1.set_low();
+		pin0.toggle();
+		pin1.toggle();
 		util::delayms(500);
 	}
 }
