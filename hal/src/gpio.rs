@@ -64,128 +64,10 @@ macro_rules! gpio {
 				PMD0, PMD1, PMD2, PMD3, OpenDrain, Floating, PullUp, PullDown, Input, Output, GpioExt
 			};
 
-			//Opaque PER register
-			pub struct PER {
-				_0: (),
-			}
 
-			impl PER {
-				pub(crate) fn per(&mut self) -> &$pioy::PIO_PER {
-					unsafe { &(*$PIOX::ptr()).pio_per }
-				}
-			}
-
-			//Opaque PDR register
-			pub struct PDR {
-				_0: (),
-			}
-
-			impl PDR {
-				pub(crate) fn pdr(&mut self) -> &$pioy::PIO_PDR {
-					unsafe { &(*$PIOX::ptr()).pio_pdr }
-				}
-			}
-
-			//Opaque OER register
-			pub struct OER {
-				_0: (),
-			}
-
-			impl OER {
-				pub(crate) fn oer(&mut self) -> &$pioy::PIO_OER {
-					unsafe { &(*$PIOX::ptr()).pio_oer }
-				}
-			}
-
-			//Opaque ODR register
-			pub struct ODR {
-				_0: (),
-			}
-
-			impl ODR {
-				pub(crate) fn odr(&mut self) -> &$pioy::PIO_ODR {
-					unsafe { &(*$PIOX::ptr()).pio_odr }
-				}
-			}
-
-
-			//Opaque PUER register
-			pub struct PUER {
-				_0: (),
-			}
-
-			impl PUER {
-				pub(crate) fn puer(&mut self) -> &$pioy::PIO_PUER {
-					unsafe { &(*$PIOX::ptr()).pio_puer }
-				}
-			}
-
-			//Opaque PUDR register
-			pub struct PUDR {
-				_0: (),
-			}
-
-			impl PUDR {
-				pub(crate) fn pudr(&mut self) -> &$pioy::PIO_PUDR {
-					unsafe { &(*$PIOX::ptr()).pio_pudr }
-				}
-			}
-
-			//Opaque PPDER register
-			pub struct PPDER {
-				_0: (),
-			}
-
-			impl PPDER {
-				pub(crate) fn ppder(&mut self) -> &$pioy::PIO_PPDER {
-					unsafe { &(*$PIOX::ptr()).pio_ppder }
-				}
-			}
-
-			//Opaque PPDDR register
-			pub struct PPDDR {
-				_0: (),
-			}
-
-			impl PPDDR {
-				pub(crate) fn ppddr(&mut self) -> &$pioy::PIO_PPDDR {
-					unsafe { &(*$PIOX::ptr()).pio_ppddr }
-				}
-			}
-			//Opaque ABCDSR register
-			pub struct ABCDSR {
-				_0: (),
-			}
-
-			impl ABCDSR {
-				pub(crate) fn abcdsr1(&mut self) -> &$pioy::PIO_ABCDSR {
-					unsafe { &(*$PIOX::ptr()).pio_abcdsr[0] }
-				}
-				pub(crate) fn abcdsr2(&mut self) -> &$pioy::PIO_ABCDSR {
-					unsafe { &(*$PIOX::ptr()).pio_abcdsr[1] }
-				}
-			}
 
 			/// PIO parts
 			pub struct Parts {
-				/// Opaque Pio Enable Register
-				pub per: PER,
-				/// Opaque Pio Disable Register
-				pub pdr: PDR,
-				/// Opaque Output Enable Register
-				pub oer: OER,
-				/// Opaque Output Disable Register
-				pub odr: ODR,
-				/// Opaque Pull Up Enable Register
-				pub puer : PUER,
-				/// Opaque Pull Up Disable Register
-				pub pudr : PUDR,
-				/// Opaque Pad Pull Down Enable Register
-				pub ppder : PPDER,
-				/// Opaque Pad Pull Down Disable Register
-				pub ppddr : PPDDR,
-				/// Opaque Peripheral ABCD Select Register
-				pub abcdsr : ABCDSR,
 				$(
 					pub $pxi: $PXi<$MODE>,
 				)+
@@ -198,16 +80,6 @@ macro_rules! gpio {
 					pmc.pmc_pcer0.write( |w| w.$perid().set_bit());
 
 					Parts {
-						per: PER{ _0 : () },
-						pdr: PDR{ _0 : () },
-						oer: OER{ _0 : () },
-						odr: ODR{ _0 : () },
-						puer: PUER{ _0 : () },
-						pudr: PUDR{ _0 : () },
-						ppder: PPDER{ _0 : () },
-						ppddr: PPDDR{ _0 : () },
-						abcdsr: ABCDSR{ _0: ()},
-
 						$(
 							$pxi: $PXi { _mode: PhantomData },
 						)+
@@ -224,25 +96,24 @@ macro_rules! gpio {
 				impl<MODE> $PXi<MODE> {
 					pub fn into_pmd0(
 						self,
-						abcdsr: &mut ABCDSR,
-						pdr: &mut PDR,
 					) -> $PXi<PMD0>{
-						abcdsr.abcdsr1().write(|w| {w.$pxi().clear_bit() });
-						abcdsr.abcdsr2().write(|w| {w.$pxi().clear_bit() });
-						pdr.pdr().write(|w| { w.$pxi().set_bit() });
+						unsafe {
+							&(*$PIOX::ptr()).pio_abcdsr[0].write(|w| { w.$pxi().clear_bit() });
+							&(*$PIOX::ptr()).pio_abcdsr[1].write(|w| { w.$pxi().clear_bit() });
+							&(*$PIOX::ptr()).pio_pdr.write(|w| { w.$pxi().set_bit() });
+						}
 
 						$PXi { _mode: PhantomData }
 					}
 
 					pub fn into_pmd1(
 						self,
-						abcdsr: &mut ABCDSR,
-						pdr: &mut PDR,
 					) -> $PXi<PMD1>{
-						abcdsr.abcdsr1().write(|w| {w.$pxi().set_bit() });
-						abcdsr.abcdsr2().write(|w| {w.$pxi().clear_bit() });
-						pdr.pdr().write(|w| { w.$pxi().set_bit() });
-
+						unsafe {
+							&(*$PIOX::ptr()).pio_abcdsr[0].write(|w| { w.$pxi().set_bit() });
+							&(*$PIOX::ptr()).pio_abcdsr[1].write(|w| { w.$pxi().clear_bit() });
+							&(*$PIOX::ptr()).pio_pdr.write(|w| { w.$pxi().set_bit() });
+						}
 
 						$PXi { _mode: PhantomData }
 					}
@@ -250,12 +121,12 @@ macro_rules! gpio {
 
 					pub fn into_pmd2(
 						self,
-						abcdsr: &mut ABCDSR,
-						pdr: &mut PDR,
 					) -> $PXi<PMD2>{
-						abcdsr.abcdsr1().write(|w| {w.$pxi().clear_bit() });
-						abcdsr.abcdsr2().write(|w| {w.$pxi().set_bit() });
-						pdr.pdr().write(|w| { w.$pxi().set_bit() });
+						unsafe {
+							&(*$PIOX::ptr()).pio_abcdsr[0].write(|w| { w.$pxi().clear_bit() });
+							&(*$PIOX::ptr()).pio_abcdsr[1].write(|w| { w.$pxi().set_bit() });
+							&(*$PIOX::ptr()).pio_pdr.write(|w| { w.$pxi().set_bit() });
+						}
 
 						$PXi { _mode: PhantomData }
 					}
@@ -263,26 +134,38 @@ macro_rules! gpio {
 
 					pub fn into_pmd3(
 						self,
-						abcdsr: &mut ABCDSR,
-						pdr: &mut PDR,
 					) -> $PXi<PMD3>{
-						abcdsr.abcdsr1().write(|w| {w.$pxi().set_bit() });
-						abcdsr.abcdsr2().write(|w| {w.$pxi().set_bit() });
-						pdr.pdr().write(|w| { w.$pxi().set_bit() });
+						unsafe {
+							&(*$PIOX::ptr()).pio_abcdsr[0].write(|w| { w.$pxi().set_bit() });
+							&(*$PIOX::ptr()).pio_abcdsr[1].write(|w| { w.$pxi().set_bit() });
+							&(*$PIOX::ptr()).pio_pdr.write(|w| { w.$pxi().set_bit() });
+						}
 
 						$PXi { _mode: PhantomData }
 					}
 
 					pub fn into_open_drain_output(
 						self,
-						per: &mut PER,
-						oer: &mut OER,
 					) -> $PXi<Output<OpenDrain>> {
-						per.per().write(|w| { w.$pxi().set_bit() });
-						oer.oer().write(|w| { w.$pxi().set_bit() });
+						unsafe {
+							&(*$PIOX::ptr()).pio_per.write(|w| { w.$pxi().set_bit() });
+							&(*$PIOX::ptr()).pio_oer.write(|w| { w.$pxi().set_bit() });
+						}
 
 						$PXi { _mode: PhantomData }
 					}
+
+					pub fn into_floating_input(
+						self,
+					) -> $PXi<Input<Floating>> {
+						unsafe {
+							&(*$PIOX::ptr()).pio_per.write(|w| { w.$pxi().set_bit() });
+							&(*$PIOX::ptr()).pio_odr.write(|w| { w.$pxi().set_bit() });
+						}
+
+						$PXi { _mode: PhantomData }
+					}
+
 				}
 
 				impl<MODE> OutputPin for $PXi<Output<MODE>> {

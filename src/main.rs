@@ -41,8 +41,8 @@ fn main() -> ! {
 	wdt.wdt_mr.write( |w| w.wddis().set_bit() );
 
 	let mut pioc = peripherals.PIOC.split(&mut pmc);
-	let mut pin0 = pioc.p19.into_open_drain_output(&mut pioc.per, &mut pioc.oer);
-	let mut pin1 = pioc.p10.into_open_drain_output(&mut pioc.per, &mut pioc.oer);
+	let mut pin0 = pioc.p19.into_open_drain_output();
+	let mut pin1 = pioc.p10.into_open_drain_output();
 
 	//blink
 	loop {
