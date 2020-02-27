@@ -310,6 +310,20 @@ macro_rules! gpio {
 				}
 
 				impl<MODE> toggleable::Default for $PXi<Output<MODE>> {}
+
+				impl<MODE> InputPin for $PXi<Input<MODE>> {
+					type Error = Infallible;
+
+					fn is_high(&self) -> Result<bool, Self::Error> {
+						// NOTE(unsafe) atomic read with no side effects
+						Ok(unsafe { (*$PIOX::ptr()).pio_pdsr.read().$pxi().bit_is_set() })
+					}
+
+					fn is_low(&self) -> Result<bool, Self::Error> {
+						// NOTE(unsafe) atomic read with no side effects
+						Ok(unsafe { (*$PIOX::ptr()).pio_pdsr.read().$pxi().bit_is_clear() })
+					}
+				}
 			)+
 		}
 	}
