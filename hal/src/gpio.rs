@@ -54,9 +54,9 @@ macro_rules! gpio {
 			use core::convert::Infallible;
 			use core::marker::PhantomData;
 
-			use embedded_hal::digital::v2::{OutputPin, StatefulOutputPin, ToggleableOutputPin, InputPin};
+			use embedded_hal::digital::v2::{OutputPin, StatefulOutputPin, InputPin};
 			use embedded_hal::digital::v2::toggleable;
-			use crate::target_device::{$PIOX, $pioy};
+			use crate::target_device::{$PIOX};
 
 			use crate::target_device::PMC;
 			#[allow(unused_imports)]
@@ -161,6 +161,36 @@ macro_rules! gpio {
 						unsafe {
 							&(*$PIOX::ptr()).pio_per.write(|w| { w.$pxi().set_bit() });
 							&(*$PIOX::ptr()).pio_odr.write(|w| { w.$pxi().set_bit() });
+
+							//disable possible pull up/down
+							&(*$PIOX::ptr()).pio_ppddr.write(|w| { w.$pxi().set_bit() });
+							&(*$PIOX::ptr()).pio_pudr.write(|w| { w.$pxi().set_bit() });
+						}
+
+						$PXi { _mode: PhantomData }
+					}
+
+					pub fn into_pull_down_input(
+						self,
+					) -> $PXi<Input<PullDown>> {
+						unsafe {
+							&(*$PIOX::ptr()).pio_per.write(|w| { w.$pxi().set_bit() });
+							&(*$PIOX::ptr()).pio_odr.write(|w| { w.$pxi().set_bit() });
+
+							&(*$PIOX::ptr()).pio_ppder.write(|w| { w.$pxi().set_bit() });
+						}
+
+						$PXi { _mode: PhantomData }
+					}
+
+					pub fn into_pull_up_input(
+						self,
+					) -> $PXi<Input<PullDown>> {
+						unsafe {
+							&(*$PIOX::ptr()).pio_per.write(|w| { w.$pxi().set_bit() });
+							&(*$PIOX::ptr()).pio_odr.write(|w| { w.$pxi().set_bit() });
+
+							&(*$PIOX::ptr()).pio_puer.write(|w| { w.$pxi().set_bit() });
 						}
 
 						$PXi { _mode: PhantomData }

@@ -14,7 +14,6 @@ use cortex_m_semihosting::{hprintln};
 use hal::target_device;
 use hal::gpio::*;
 
-use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::digital::v2::ToggleableOutputPin;
 
 //use hal::serial::Serial0;
@@ -40,14 +39,14 @@ fn main() -> ! {
 	let wdt = &peripherals.WDT;
 	wdt.wdt_mr.write( |w| w.wddis().set_bit() );
 
-	let mut pioc = peripherals.PIOC.split(&mut pmc);
+	let pioc = peripherals.PIOC.split(&mut pmc);
 	let mut pin0 = pioc.p19.into_open_drain_output();
 	let mut pin1 = pioc.p10.into_open_drain_output();
 
 	//blink
 	loop {
-		pin0.toggle();
-		pin1.toggle();
+		pin0.toggle().unwrap();
+		pin1.toggle().unwrap();
 		util::delayms(500);
 	}
 }
