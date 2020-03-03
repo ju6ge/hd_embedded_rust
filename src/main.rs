@@ -2,11 +2,7 @@
 #![no_main]
 #![feature(asm)]
 
-// pick a panicking behavior
 extern crate panic_halt;
-
-//#[cfg(debug_assertions)]
-//extern crate panic_semihosting; // logs messages to the host stderr; requires a debugger
 
 use cortex_m_rt::entry;
 use cortex_m_semihosting::{hprintln};
@@ -15,9 +11,6 @@ use hal::target_device;
 use hal::gpio::*;
 
 use embedded_hal::digital::v2::ToggleableOutputPin;
-
-//use hal::serial::Serial0;
-//use embedded_hal::serial::Write;
 
 mod system;
 mod util;
