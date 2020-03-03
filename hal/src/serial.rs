@@ -10,8 +10,9 @@ use crate::target_device::{UART0, UART1, UART2, UART3, UART4};
 use crate::target_device::{USART0, USART1, USART2};
 
 use crate::gpio::{PeripheralCntr, PeriphA, PeriphB, PeriphC, PeriphD};
-use crate::gpio::pioa::{PA4, PA5, PA6, PA9, PA10};
-use crate::gpio::piod::{PD3, PD18, PD19, PD25, PD26, PD28, PD30, PD31};
+use crate::gpio::pioa::{PA4, PA5, PA6, PA9, PA10, PA21, PA23};
+use crate::gpio::piob::{PB0, PB1, PB4, PB13};
+use crate::gpio::piod::{PD3, PD15, PD16, PD17, PD18, PD19, PD25, PD26, PD28, PD30, PD31};
 
 use crate::time::Hertz;
 
