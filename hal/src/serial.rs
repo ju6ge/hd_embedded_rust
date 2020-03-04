@@ -8,6 +8,7 @@ use nb::block;
 
 use crate::target_device::{UART0, UART1, UART2, UART3, UART4};
 use crate::target_device::{USART0, USART1, USART2};
+use crate::target_device::PMC;
 
 use crate::gpio::{PeripheralCntr, PeriphA, PeriphB, PeriphC, PeriphD};
 use crate::gpio::pioa::{PA4, PA5, PA6, PA9, PA10, PA21, PA23};
@@ -284,4 +285,59 @@ uart_pins! {
 			PD18<PeripheralCntr<PeriphC>>,
 			NoRx
 		]
+}
+
+/// Serial abstraction
+pub struct Serial<USART, PINS> {
+	usart: USART,
+	pins: PINS,
+}
+
+/// Serial receiver
+pub struct Rx<USART> {
+	_usart: PhantomData<USART>,
+}
+
+/// Serial transmitter
+pub struct Tx<USART> {
+	_usart: PhantomData<USART>,
+}
+
+pub trait SerialExt<USART> {
+	fn usart<PINS>(
+		self,
+		pins: PINS,
+		config: config::Config,
+		pmc: &mut PMC,
+	) -> Result<Serial<USART, PINS>, config::InvalidConfig>
+	where
+		PINS: Pins<USART>;
+}
+
+macro_rules! usart {
+	($( $USARTX:ident: (
+			$usartX:ident,
+			$en_reg:ident,
+			$perid:ident,
+			$usartXrst:ident,
+			$pclkX:ident
+		),
+	)+) => {
+		$(
+			/// Configures a USART peripheral to provide serial
+			/// communication
+			impl<PINS> Serial<$USARTX, PINS> {
+				pub fn $usartX(
+					usart: $USARTX,
+					pins: PINS,
+					config: config::Config,
+					pmc: &mut PMC,
+				) -> Result<Self, config::InvalidConfig>
+				where
+					PINS: Pins<$USARTX>,
+				{
+				}
+			}
+		)+
+	}
 }
