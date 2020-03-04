@@ -191,7 +191,7 @@ macro_rules! gpio {
 
 					pub fn into_pull_up_input(
 						self,
-					) -> $PXi<Input<PullDown>> {
+					) -> $PXi<Input<PullUp>> {
 						unsafe {
 							&(*$PIOX::ptr()).pio_per.write(|w| { w.$pxi().set_bit() });
 							&(*$PIOX::ptr()).pio_odr.write(|w| { w.$pxi().set_bit() });
