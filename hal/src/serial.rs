@@ -51,13 +51,15 @@ pub mod config {
         DataBits6,
         DataBits7,
         DataBits8,
-        DataBits9,
     }
 
     pub enum Parity {
-        ParityNone,
         ParityEven,
         ParityOdd,
+        ParitySpace,
+        ParityMark,
+        ParityNone,
+        ParityMultidrop
     }
 
     pub enum StopBits {
@@ -114,11 +116,6 @@ pub mod config {
 
         pub fn wordlength_8(mut self) -> Self {
             self.wordlength = WordLength::DataBits8;
-            self
-        }
-
-        pub fn wordlength_9(mut self) -> Self {
-            self.wordlength = WordLength::DataBits9;
             self
         }
 
@@ -314,28 +311,29 @@ pub trait SerialExt<USART> {
 		PINS: Pins<USART>;
 }
 
-macro_rules! usart {
-	($( $USARTX:ident: (
-			$usartX:ident,
+//Todo the USART module is much more complex on this device -> TODO for future
+
+macro_rules! uart {
+	($( $UARTX:ident: (
+			$uartX:ident,
 			$en_reg:ident,
 			$perid:ident,
-			$usartXrst:ident,
-			$pclkX:ident
 		),
 	)+) => {
 		$(
-			/// Configures a USART peripheral to provide serial
+			/// Configures a UART peripheral to provide serial
 			/// communication
-			impl<PINS> Serial<$USARTX, PINS> {
-				pub fn $usartX(
-					usart: $USARTX,
+			impl<PINS> Serial<$UARTX, PINS> {
+				pub fn $uartX(
+					uart: $UARTX,
 					pins: PINS,
 					config: config::Config,
 					pmc: &mut PMC,
 				) -> Result<Self, config::InvalidConfig>
 				where
-					PINS: Pins<$USARTX>,
+					PINS: Pins<$UARTX>,
 				{
+					pmc.$en_reg().write(|w| w.$perid().set_bit() );
 				}
 			}
 		)+
