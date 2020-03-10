@@ -471,6 +471,9 @@ macro_rules! uart_hal {
 uart_hal! {
 	UART0 : (uart0, pmc_pcer0, pid7),
 	UART1 : (uart1, pmc_pcer0, pid8),
+	UART2 : (uart2, pmc_pcer1, pid44),
+	UART3 : (uart3, pmc_pcer1, pid45),
+	UART4 : (uart4, pmc_pcer1, pid46),
 }
 
 impl<USART, PINS> fmt::Write for Serial<USART, PINS>

@@ -56,6 +56,6 @@ fn main() -> ! {
 		pin0.toggle().unwrap();
 		pin1.toggle().unwrap();
 		util::delayms(500);
-		writeln!(serial, "Hello, world!").unwrap();
+		writeln!(serial, "Hello, world!\r").unwrap();
 	}
 }
