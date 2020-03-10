@@ -15,8 +15,6 @@ use crate::gpio::pioa::{PA4, PA5, PA6, PA9, PA10, PA21, PA23};
 use crate::gpio::piob::{PB0, PB1, PB4, PB13};
 use crate::gpio::piod::{PD3, PD15, PD16, PD17, PD18, PD19, PD25, PD26, PD28, PD30, PD31};
 
-use crate::time::Hertz;
-
 /// Serial error
 #[derive(Debug)]
 pub enum Error {
@@ -71,14 +69,12 @@ pub mod config {
         STOP2,
     }
 
-    pub struct Config {
+    pub struct UartConfig {
         pub baudrate: Bps,
-        pub wordlength: WordLength,
         pub parity: Parity,
-        pub stopbits: StopBits,
     }
 
-    impl Config {
+    impl UartConfig {
         pub fn baudrate(mut self, baudrate: Bps) -> Self {
             self.baudrate = baudrate;
             self
@@ -99,43 +95,26 @@ pub mod config {
             self
         }
 
-        pub fn wordlength_5(mut self) -> Self {
-            self.wordlength = WordLength::DataBits5;
-            self
-        }
+		pub fn parity_space(mut self) -> Self {
+			self.parity = Parity::ParitySpace;
+			self
+		}
 
-        pub fn wordlength_6(mut self) -> Self {
-            self.wordlength = WordLength::DataBits6;
-            self
-        }
-
-        pub fn wordlength_7(mut self) -> Self {
-            self.wordlength = WordLength::DataBits7;
-            self
-        }
-
-        pub fn wordlength_8(mut self) -> Self {
-            self.wordlength = WordLength::DataBits8;
-            self
-        }
-
-        pub fn stopbits(mut self, stopbits: StopBits) -> Self {
-            self.stopbits = stopbits;
-            self
-        }
+		pub fn parity_mark(mut self) -> Self {
+			self.parity = Parity::ParityMark;
+			self
+		}
     }
 
     #[derive(Debug)]
     pub struct InvalidConfig;
 
-    impl Default for Config {
-        fn default() -> Config {
+    impl Default for UartConfig {
+        fn default() -> UartConfig {
             let baudrate = 19_200_u32.bps();
-            Config {
+            UartConfig {
                 baudrate,
-                wordlength: WordLength::DataBits8,
                 parity: Parity::ParityNone,
-                stopbits: StopBits::STOP1,
             }
         }
     }
@@ -301,41 +280,223 @@ pub struct Tx<USART> {
 }
 
 pub trait SerialExt<USART> {
-	fn usart<PINS>(
+	fn uart<PINS>(
 		self,
 		pins: PINS,
-		config: config::Config,
+		config: config::UartConfig,
 		pmc: &mut PMC,
 	) -> Result<Serial<USART, PINS>, config::InvalidConfig>
 	where
 		PINS: Pins<USART>;
+
+	//Todo the USART module is much more complex on this device -> TODO for future
 }
 
-//Todo the USART module is much more complex on this device -> TODO for future
 
-macro_rules! uart {
+macro_rules! uart_hal {
 	($( $UARTX:ident: (
 			$uartX:ident,
 			$en_reg:ident,
-			$perid:ident,
+			$perid:ident
 		),
 	)+) => {
 		$(
-			/// Configures a UART peripheral to provide serial
-			/// communication
+			/// Configures a UART peripheral to provide serial communication
 			impl<PINS> Serial<$UARTX, PINS> {
 				pub fn $uartX(
 					uart: $UARTX,
 					pins: PINS,
-					config: config::Config,
+					config: config::UartConfig,
 					pmc: &mut PMC,
 				) -> Result<Self, config::InvalidConfig>
 				where
 					PINS: Pins<$UARTX>,
 				{
-					pmc.$en_reg().write(|w| w.$perid().set_bit() );
+					use self::config::*;
+
+					//enable peripheral clock in pmc
+					pmc.$en_reg.write(|w| w.$perid().set_bit() );
+
+					//reset peripheral
+					uart.uart_cr.write(|w| {
+						w.rstrx().set_bit();
+						w.rsttx().set_bit();
+						w.rxdis().set_bit();
+						w.txdis().set_bit();
+						w.rststa().set_bit()
+					});
+
+					//calc correct baudrate div
+					let clk_div = 150_000_000 / (16 * config.baudrate.0);
+					uart.uart_brgr.write(|w| unsafe{w.bits(clk_div)} );
+
+					//set mode
+					uart.uart_mr.write(|w| {
+						//normal mode
+						w.chmode().bits(0);
+
+						//peripheral clk as src
+						w.brsrcck().clear_bit();
+
+						//parity
+						unsafe {w.par().bits( match config.parity {
+							Parity::ParityEven => 0,
+							Parity::ParityOdd => 1,
+							Parity::ParitySpace => 2,
+							Parity::ParityMark => 3,
+							Parity::ParityNone => 4,
+							//multidrop not available for this peripheral -> default to no parity
+							Parity::ParityMultidrop => 4,
+						})}
+					});
+
+
+					//enable receiver and transmitter
+					uart.uart_cr.write(|w| {
+						w.txen().set_bit();
+						w.rxen().set_bit()
+					});
+
+					Ok(Serial{usart: uart, pins})
+				}
+
+				/// Splits the `Serial` abstraction into a transmitter and a receiver half
+				pub fn split(self) -> (Tx<$UARTX>, Rx<$UARTX>) {
+
+					(Tx {
+						_usart: PhantomData,
+					},
+					Rx {
+						_usart: PhantomData,
+					},)
+				}
+
+				/// Releases the USART peripheral and associated pins
+				pub fn release(self) -> ($UARTX, PINS) {
+					(self.usart, self.pins)
+				}
+			}
+
+			impl<PINS> serial::Read<u8> for Serial<$UARTX, PINS> {
+				type Error = Error;
+
+				fn read(&mut self) -> nb::Result<u8, Error> {
+					let mut rx: Rx<$UARTX> = Rx {
+						_usart: PhantomData,
+					};
+					rx.read()
+				}
+			}
+
+			impl serial::Read<u8> for Rx<$UARTX> {
+				type Error = Error;
+
+				fn read(&mut self) -> nb::Result<u8, Error> {
+					// NOTE(unsafe) atomic read with no side effects
+					let sr = unsafe { (*$UARTX::ptr()).uart_sr.read() };
+
+					// Any error requires the dr to be read to clear
+					if sr.pare().bit_is_set()
+						|| sr.frame().bit_is_set()
+						|| sr.ovre().bit_is_set()
+					{
+						unsafe { (*$UARTX::ptr()).uart_rhr.read() };
+					}
+
+					Err(if sr.pare().bit_is_set() {
+						nb::Error::Other(Error::Parity)
+					} else if sr.frame().bit_is_set() {
+						nb::Error::Other(Error::Framing)
+					} else if sr.ovre().bit_is_set() {
+						nb::Error::Other(Error::Overrun)
+					} else if sr.rxrdy().bit_is_set() {
+						// NOTE(read_volatile) see `write_volatile` below
+						return Ok(unsafe { ptr::read_volatile(&(*$UARTX::ptr()).uart_rhr as *const _ as *const _) });
+					} else {
+						nb::Error::WouldBlock
+					})
+				}
+			}
+
+			impl<PINS> serial::Write<u8> for Serial<$UARTX, PINS> {
+				type Error = Error;
+
+				fn flush(&mut self) -> nb::Result<(), Self::Error> {
+					let mut tx: Tx<$UARTX> = Tx {
+						_usart: PhantomData,
+					};
+					tx.flush()
+				}
+
+				fn write(&mut self, byte: u8) -> nb::Result<(), Self::Error> {
+					let mut tx: Tx<$UARTX> = Tx {
+						_usart: PhantomData,
+					};
+					tx.write(byte)
+				}
+			}
+
+			impl serial::Write<u8> for Tx<$UARTX> {
+				type Error = Error;
+
+				fn flush(&mut self) -> nb::Result<(), Self::Error> {
+					// NOTE(unsafe) atomic read with no side effects
+					let sr = unsafe { (*$UARTX::ptr()).uart_sr.read() };
+
+					if sr.txempty().bit_is_set() {
+						Ok(())
+					} else {
+						Err(nb::Error::WouldBlock)
+					}
+				}
+
+				fn write(&mut self, byte: u8) -> nb::Result<(), Self::Error> {
+					// NOTE(unsafe) atomic read with no side effects
+					let sr = unsafe { (*$UARTX::ptr()).uart_sr.read() };
+
+					if sr.txrdy().bit_is_set() {
+						// NOTE(unsafe) atomic write to stateless register
+						// NOTE(write_volatile) 8-bit write that's not possible through the svd2rust API
+						unsafe { ptr::write_volatile(&(*$UARTX::ptr()).uart_thr as *const _ as *mut _, byte) }
+						Ok(())
+					} else {
+						Err(nb::Error::WouldBlock)
+					}
 				}
 			}
 		)+
 	}
 }
+
+uart_hal! {
+	UART0 : (uart0, pmc_pcer0, pid7),
+	UART1 : (uart1, pmc_pcer0, pid8),
+}
+
+impl<USART, PINS> fmt::Write for Serial<USART, PINS>
+	where
+	    Serial<USART, PINS>: crate::hal::serial::Write<u8>,
+    {
+		fn write_str(&mut self, s: &str) -> fmt::Result {
+			let _ = s
+				.as_bytes()
+                .into_iter()
+	            .map(|c| nb::block!(self.write(*c)))
+                .last();
+                Ok(())
+        }
+    }
+
+impl<USART> fmt::Write for Tx<USART>
+    where
+        Tx<USART>: crate::hal::serial::Write<u8>,
+    {
+        fn write_str(&mut self, s: &str) -> fmt::Result {
+            let _ = s
+                .as_bytes()
+                .into_iter()
+                .map(|c| nb::block!(self.write(*c)))
+                .last();
+                Ok(())
+        }
+    }
