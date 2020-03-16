@@ -27,14 +27,10 @@ fn main() -> ! {
 	system::system_clock_init(&mut peripherals);
 	debug!("System clock initialized!");
 
-	//enable PIOC in PMC
-	let mut pmc = peripherals.PMC;
-	pmc.pmc_pcer0.write( |w| {
-		w.pid12().set_bit()
-	});
-
 	let wdt = &peripherals.WDT;
 	wdt.wdt_mr.write( |w| w.wddis().set_bit() );
+
+	let mut pmc = peripherals.PMC;
 
 	let pioc = peripherals.PIOC.split(&mut pmc);
 	let mut pin0 = pioc.p19.into_open_drain_output();
