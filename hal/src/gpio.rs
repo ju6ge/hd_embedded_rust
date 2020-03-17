@@ -1,3 +1,5 @@
+//! Pin configuration
+
 use core::marker::PhantomData;
 
 use crate::target_device::PMC;

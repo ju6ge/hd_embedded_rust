@@ -1,4 +1,13 @@
+//! Clock configuration
+
 use crate::time::*;
+use crate::target_device::PMC;
+use crate::target_device::SUPC;
+
+pub enum ClockCalcStrategy {
+	FromFrequency,
+	FromDivider
+}
 
 /// Enum to select SLCK source
 ///
@@ -130,7 +139,7 @@ pub struct PllackConfig {
 	freq : Hertz,
 	diva : u16,
 	mula : u16,
-	from_freq : bool,
+	strategy : ClockCalcStrategy,
 	startup_cycles : u16
 }
 
@@ -140,17 +149,17 @@ impl PllackConfig {
 		self.freq = freq;
 		self.diva = 0;
 		self.mula = 0;
-		self.from_freq = true;
+		self.strategy = ClockCalcStrategy::FromFrequency;
 
 		self
 	}
 
 	/// configure PLLA based on divider values, will calculate the resulting frequency
-	fn from_param(mut self, diva:u16, mula:u16 ) -> Self {
+	fn from_divider(mut self, diva:u16, mula:u16 ) -> Self {
 		self.freq = Hertz(0);
 		self.diva = diva;
 		self.mula = mula;
-		self.from_freq = false;
+		self.strategy = ClockCalcStrategy::FromDivider;
 
 		self
 	}
@@ -169,7 +178,7 @@ impl Default for PllackConfig {
 			freq : Hertz(0),
 			diva : 0,
 			mula : 0,
-			from_freq : false,
+			strategy : ClockCalcStrategy::FromDivider,
 			startup_cycles : 0
 		}
 	}
@@ -185,9 +194,22 @@ pub struct UpllckConfig {
 	src : UpllckSrcFreq,
 	freq : Hertz,
 	startup_cycles : u16
+	enable : bool
 }
 
 impl UpllckConfig {
+	fn enable(mut self) -> Self {
+		self.enable = true;
+
+		self
+	}
+
+	fn disable(mut self) -> Self {
+		self.enable = false;
+
+		self
+	}
+
 	fn src_freq(mut self, src:UpllckSrcFreq) -> Self {
 		self.src = src;
 		self.freq = MegaHertz(480).into();
@@ -216,12 +238,211 @@ pub enum SystemClocksSrc {
 	SLCK,
 	MAINCK,
 	PLLACK,
-	UPLLCK
+	UPLLCKDIV,
+	MCK
+}
+
+pub enum MasterPrescale {
+	Pres1,
+	Pres2,
+	Pres3,
+	Pres4,
+	Pres8,
+	Pres16,
+	Pres32,
+	Pres64
+}
+
+pub enum MasterDivider {
+	Div1,
+	Div2,
+	Div3,
+	Div4
+}
+
+pub enum UpllDiv{
+	Div1,
+	Div2
+}
+
+pub struct MasterClockConfig {
+	src : SystemClocksSrc,
+	pres : MasterPrescale,
+	mdiv : MasterDivider,
+	uplldiv : UpllDiv,
+	freq_cpu : Option<Hertz>,
+	freq_mck : Option<Hertz>,
+	strategy : ClockCalcStrategy
+}
+
+
+impl MasterClockConfig {
+	fn src_slck(mut self) -> Self {
+		self.src = SystemClocksSrc::SLCK;
+
+		self
+	}
+
+	fn src_mainck(mut self) -> Self {
+		self.src = SystemClocksSrc::MAINCK;
+
+		self
+
+	}
+
+	fn src_pllack(mut self) -> Self {
+		self.src = SystemClocksSrc::PLLACK;
+
+		self
+
+	}
+
+	fn src_upllckdiv(mut self) -> Self {
+		self.src = SystemClocksSrc::UPLLCKDIV;
+
+		self
+
+	}
+
+	fn set_uplldiv(mut self, div:UpllDiv) -> Self {
+		self.uplldiv = div;
+
+		self
+	}
+
+	fn from_divider(mut self, pres:MasterPrescale, mdiv:MasterDivider) -> Self {
+		self.strategy = ClockCalcStrategy::FromDivider;
+		self.pres = pres;
+		self.mdiv = mdiv;
+
+		self
+	}
+
+	fn from_freq(mut self, cpu_freq:Hertz, mck_freq:Hertz) -> Self {
+		self.strategy = ClockCalcStrategy::FromFrequency;
+		self.freq_cpu = Some(cpu_freq);
+		self.freq_mck = Some(mck_freq);
+
+		self
+	}
+}
+
+impl Default for MasterClockConfig {
+	fn default() -> MasterClockConfig {
+		MasterClockConfig{
+			src : SystemClocksSrc::MAINCK,
+			pres : MasterPrescale::Pres1,
+			mdiv : MasterDivider::Div1,
+			uplldiv : UpllDiv::Div1,
+			freq_cpu : None,
+			freq_mck : None,
+			strategy : ClockCalcStrategy::FromDivider
+		}
+	}
+}
+
+pub struct SystemClockConfig {
+	slck_conf : SlckConfig,
+	mainck_conf : MainckConfig,
+	plla_conf : PllackConfig,
+	upll_conf : UpllckConfig,
+	mck_conf : MasterClockConfig
+}
+
+impl SystemClockConfig {
+	/// Freezes the clock configuration by making it effective
+	pub fn freeze(&self, pmc: &mut PMC, supc: &mut SUPC) -> Clocks {
+		// Slow Clock configuration
+
+		// Main Clock configuration
+
+		// Plla configuration
+
+		// Upll configuration
+
+		// Master Clock configuration
+
+		Clocks {
+
+		}
+	}
 }
 
 /// Frozen clock frequencies
 ///
 /// The existance of this value indicates that the clock configuration should no longer be changed
 pub struct Clocks {
+	/// Processor Clock frequency
+	hclk : Hertz,
+
+	/// SysTick frequency
+	sys_tick : Hertz,
+
+	/// Free Running Processor Clock frequency
+	fclk : Hertz,
+
+	/// Master Clock frequency
 	mck: Hertz,
+
+	/// Slow Clock frequency
+	slck : Hertz,
+
+	/// Main Clock frequency
+	mainck : Hertz,
+
+	/// Plla Clock frequency
+	plla : Hertz,
+
+	/// Uplldiv Clock frequency
+	uplldiv : Hertz,
+
+	///UPLL usb clock frequency
+	usb_480 : Hertz
+}
+
+impl Clocks {
+	/// Returns Processor frequency
+	fn hclk(&self) -> Hertz {
+		self.hclk
+	}
+
+	/// Returns SysTick frequency
+	fn sys_tick(&self) -> Hertz {
+		self.sys_tick
+	}
+
+	/// Returns Free Running Processor Clock frequency
+	fn fclk(&self) -> Hertz {
+		self.fclk
+	}
+
+	/// Returns Master Clock frequency
+	fn mck(&self) -> Hertz {
+		self.mck
+	}
+
+	/// Returns Slow Clock frequency
+	fn slck(&self) -> Hertz {
+		self.slck
+	}
+
+	/// Returns Mainck frequency
+	fn mainck(&self) -> Hertz {
+		self.mainck
+	}
+
+	/// Returns Plla frequency
+	fn plla(&self) -> Hertz {
+		self.plla
+	}
+
+	/// Returns Uplldiv frequency
+	fn uplldiv(&self) -> Hertz {
+		self.uplldiv
+	}
+
+	/// Returns UPLL usb clock frequency
+	fn usb_480(&self) -> Hertz {
+		self.usb_480
+	}
 }
