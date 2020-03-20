@@ -5,6 +5,8 @@ use crate::target_device::PMC;
 use crate::target_device::SUPC;
 use crate::target_device::UTMI;
 
+use core::intrinsics::floorf32;
+
 pub enum ClockCalcStrategy {
 	FromFrequency,
 	FromDivider
@@ -271,12 +273,11 @@ impl Default for UpllckConfig {
 	}
 }
 
-pub enum SystemClocksSrc {
+pub enum MasterClockSrc {
 	SLCK,
 	MAINCK,
 	PLLACK,
 	UPLLCKDIV,
-	MCK
 }
 
 pub enum MasterPrescale {
@@ -290,11 +291,37 @@ pub enum MasterPrescale {
 	Pres64
 }
 
+impl MasterPrescale {
+	pub fn to_value(&self) -> u32 {
+		match self {
+			Self::Pres1 => 1,
+			Self::Pres2 => 2,
+			Self::Pres3 => 3,
+			Self::Pres4 => 4,
+			Self::Pres8 => 8,
+			Self::Pres16 => 16,
+			Self::Pres32 => 32,
+			Self::Pres64 => 64
+		}
+	}
+}
+
 pub enum MasterDivider {
 	Div1,
 	Div2,
 	Div3,
 	Div4
+}
+
+impl MasterDivider {
+	pub fn to_value(&self) -> u32 {
+		match self {
+			Self::Div1 => 1,
+			Self::Div2 => 2,
+			Self::Div3 => 3,
+			Self::Div4 => 4
+		}
+	}
 }
 
 pub enum UpllDiv{
@@ -304,7 +331,7 @@ pub enum UpllDiv{
 
 /// Holds the configuration of the Master Clock driving the CPU and Peripherals
 pub struct MasterClockConfig {
-	src : SystemClocksSrc,
+	src : MasterClockSrc,
 	pres : MasterPrescale,
 	mdiv : MasterDivider,
 	uplldiv : UpllDiv,
@@ -317,14 +344,14 @@ pub struct MasterClockConfig {
 impl MasterClockConfig {
 	/// select slow clock as source
 	pub fn src_slck(mut self) -> Self {
-		self.src = SystemClocksSrc::SLCK;
+		self.src = MasterClockSrc::SLCK;
 
 		self
 	}
 
 	/// select main clock as source
 	pub fn src_mainck(mut self) -> Self {
-		self.src = SystemClocksSrc::MAINCK;
+		self.src = MasterClockSrc::MAINCK;
 
 		self
 
@@ -332,7 +359,7 @@ impl MasterClockConfig {
 
 	/// select plla clock as source
 	pub fn src_pllack(mut self) -> Self {
-		self.src = SystemClocksSrc::PLLACK;
+		self.src = MasterClockSrc::PLLACK;
 
 		self
 
@@ -340,7 +367,7 @@ impl MasterClockConfig {
 
 	/// select uplldiv clock as source
 	pub fn src_upllckdiv(mut self) -> Self {
-		self.src = SystemClocksSrc::UPLLCKDIV;
+		self.src = MasterClockSrc::UPLLCKDIV;
 
 		self
 
@@ -376,7 +403,7 @@ impl MasterClockConfig {
 impl Default for MasterClockConfig {
 	fn default() -> MasterClockConfig {
 		MasterClockConfig{
-			src : SystemClocksSrc::MAINCK,
+			src : MasterClockSrc::MAINCK,
 			pres : MasterPrescale::Pres1,
 			mdiv : MasterDivider::Div1,
 			uplldiv : UpllDiv::Div1,
@@ -548,11 +575,66 @@ impl SystemClockConfig {
 					//Wait until clock has stabilized
 				}
 
-				plla_freq = mainck_freq * (self.plla_conf.mula + 1) / (self.plla_conf.diva);
+				plla_freq = Hertz(mainck_freq.0 * (self.plla_conf.mula + 1) as u32 / (self.plla_conf.diva) as u32);
 			}
 			ClockCalcStrategy::FromFrequency => {
-		    	//currently not implemented! leaves plla disabled
-				plla_freq = Hertz(0);
+		    	let factor : f32 =  self.plla_conf.freq.0 as f32 / mainck_freq.0 as f32;
+
+		    	let mula:u16;
+		    	let diva:u8;
+
+		    	//special case for case out_freq = in_freq since plla muliplies with at least two
+		    	if factor == 1.0 {
+			    	mula = 1;
+					diva = 2;
+		    	//if factor is an integer use it als multiplier with divisor 1
+		    	} else if factor == (factor as u32) as f32 {
+					mula = factor as u16 - 1;
+					diva = 1;
+		    	} else {
+					let mut mul : Option<u16> = None;
+					let mut div : Option<u16> = None;
+					let mut err : Option<f32> = None;
+					let mut d:u16 = 1;
+					let mut m:u16 = 0;
+					while d<=255 && m<63 {
+						m = unsafe { floorf32(d as f32 * factor) } as u16;
+						let e:f32 = m as f32 / d as f32 - factor;
+						if m > 63 || m == 1 {
+							d += 1;
+							continue;
+						}
+						if e == 0.0 {
+							mul = Some(m);
+							div = Some(d);
+							break;
+						}
+						if err.is_none() || err.unwrap() > e {
+							mul = Some(m);
+							div = Some(d);
+							err = Some(e);
+						}
+						d += 1;
+					}
+
+					if mul.is_none() || div.is_none() {
+						panic!("No suitable multiplier and divider values could be determined!");
+					}
+					mula = mul.unwrap() - 1;
+					diva = div.unwrap() as u8;
+		    	}
+
+				pmc.ckgr_pllar.write( |w| {
+					w.one().set_bit();
+					unsafe { w.mula().bits(mula) };
+					unsafe { w.diva().bits(diva) };
+					unsafe { w.pllacount().bits(self.plla_conf.startup_cycles) }
+				});
+				while pmc.pmc_sr.read().locka().bit_is_clear() {
+					//Wait until clock has stabilized
+				}
+
+				plla_freq = Hertz(mainck_freq.0 * (mula + 1) as u32 / (diva) as u32);
 			}
 		}
 		
@@ -579,17 +661,89 @@ impl SystemClockConfig {
 
 		// Master Clock configuration
 
+		//set divider for uplldiv signal
+		let uplldiv_freq : Hertz = match self.mck_conf.uplldiv {
+				UpllDiv::Div1 => upll_freq,
+				UpllDiv::Div2 => Hertz( upll_freq.0 / 2 )
+		};
+		pmc.pmc_mckr.modify( |_,w| {
+			match self.mck_conf.uplldiv {
+				UpllDiv::Div1 => {
+					w.uplldiv2().clear_bit()
+				}
+				UpllDiv::Div2 => {
+					w.uplldiv2().set_bit()
+				}
+			}
+		});
+		while pmc.pmc_sr.read().mckrdy().bit_is_clear() {
+			//Wait for configuration to be applied
+		}
+
+		//set divider values
+		let processor_freq:Hertz;
+		let peripheral_freq:Hertz;
+		let master_src_freq: Hertz = match self.mck_conf.src {
+			MasterClockSrc::MAINCK => mainck_freq,
+			MasterClockSrc::PLLACK => plla_freq,
+			MasterClockSrc::UPLLCKDIV => uplldiv_freq,
+			MasterClockSrc::SLCK => self.slck_conf.freq
+		};
+		match self.mck_conf.strategy {
+			ClockCalcStrategy::FromDivider => {
+				pmc.pmc_mckr.modify(|_,w| {
+					match self.mck_conf.pres {
+						MasterPrescale::Pres1 => w.pres().clk_1(),
+						MasterPrescale::Pres2 => w.pres().clk_2(),
+						MasterPrescale::Pres3 => w.pres().clk_3(),
+						MasterPrescale::Pres4 => w.pres().clk_4(),
+						MasterPrescale::Pres8 => w.pres().clk_8(),
+						MasterPrescale::Pres16 => w.pres().clk_16(),
+						MasterPrescale::Pres32 => w.pres().clk_32(),
+						MasterPrescale::Pres64 => w.pres().clk_64()
+					};
+					match self.mck_conf.mdiv {
+						MasterDivider::Div1 => w.mdiv().eq_pck(),
+						MasterDivider::Div2 => w.mdiv().pck_div2(),
+						MasterDivider::Div3 => w.mdiv().pck_div3(),
+						MasterDivider::Div4 => w.mdiv().pck_div4()
+					}
+				});
+				processor_freq = Hertz( master_src_freq.0 / self.mck_conf.pres.to_value() );
+				peripheral_freq = Hertz( processor_freq.0 / self.mck_conf.mdiv.to_value() );
+			}
+			ClockCalcStrategy::FromFrequency => {
+				
+			}
+		}
+		while pmc.pmc_sr.read().mckrdy().bit_is_clear() {
+			//Wait for configuration to be applied
+		}
+
+		//set master clock src
+		pmc.pmc_mckr.modify(|_,w| {
+			match self.mck_conf.src {
+				MasterClockSrc::MAINCK => w.css().main_clk(),
+				MasterClockSrc::PLLACK => w.css().plla_clk(),
+				MasterClockSrc::UPLLCKDIV => w.css().upll_clk(),
+				MasterClockSrc::SLCK => w.css().slow_clk()
+			}
+		});
+		while pmc.pmc_sr.read().mckrdy().bit_is_clear() {
+			//Wait for configuration to be applied
+		}
+
 		Clocks {
 			slck : self.slck_conf.freq,
 			mainck : mainck_freq,
 			plla : plla_freq,
 			upll : upll_freq,
+			uplldiv : uplldiv_freq,
 
-			uplldiv : Hertz(0),
-			mck : Hertz(0),
-			fclk : Hertz(0),
-			sys_tick : Hertz(0),
-			hclk : Hertz(0),
+			mck : peripheral_freq,
+			fclk : processor_freq,
+			sys_tick : Hertz(processor_freq.0 / 2),
+			hclk : processor_freq,
 
 		}
 	}

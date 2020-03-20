@@ -6,7 +6,6 @@ use core::ptr;
 
 use embedded_hal::prelude::*;
 use embedded_hal::serial;
-use nb::block;
 
 use crate::target_device::{UART0, UART1, UART2, UART3, UART4};
 use crate::target_device::{USART0, USART1, USART2};
