@@ -9,6 +9,7 @@ use cortex_m_semihosting::{hprintln};
 
 use hal::target_device;
 use hal::gpio::*;
+use hal::clock_gen::{Clocks, MasterClockConfig, SlckConfig, MainckConfig, PllackConfig, UpllckConfig, SystemClockConfig, MasterDivider, MasterPrescale};
 use hal::serial::{config, Serial};
 use hal::time::*;
 
@@ -24,13 +25,27 @@ mod debug;
 fn main() -> ! {
 	let mut peripherals = target_device::Peripherals::take().unwrap();
 
-	system::system_clock_init(&mut peripherals);
-	debug!("System clock initialized!");
-
 	let wdt = &peripherals.WDT;
 	wdt.wdt_mr.write( |w| w.wddis().set_bit() );
 
 	let mut pmc = peripherals.PMC;
+	let mut supc = peripherals.SUPC;
+
+	peripherals.EFC.eefc_fmr.write( |w| {
+		unsafe {w.fws().bits(5);}
+		w.cloe().set_bit();
+		w.scod().clear_bit()
+	});
+
+	let clocks:Clocks = SystemClockConfig{
+		slck_conf : SlckConfig::default(),
+		mainck_conf : MainckConfig::default().use_crystal(hal::time::MegaHertz(12).into()).disable_rc(),
+		plla_conf : PllackConfig::default().from_divider(1, 49).startup_cycles(100),
+		upll_conf : UpllckConfig::default().enable(),
+		mck_conf :MasterClockConfig::default().src_pllack().from_divider(MasterPrescale::Pres2, MasterDivider::Div2)
+	}.freeze(&mut pmc, &mut supc);
+
+	debug!("System clock initialized!");
 
 	let pioc = peripherals.PIOC.split(&mut pmc);
 	let mut pin0 = pioc.p19.into_open_drain_output();

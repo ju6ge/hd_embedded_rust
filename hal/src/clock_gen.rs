@@ -5,9 +5,7 @@ use crate::target_device::PMC;
 use crate::target_device::SUPC;
 use crate::target_device::UTMI;
 
-use core::intrinsics::floorf32;
-
-pub enum ClockCalcStrategy {
+enum ClockCalcStrategy {
 	FromFrequency,
 	FromDivider
 }
@@ -335,9 +333,6 @@ pub struct MasterClockConfig {
 	pres : MasterPrescale,
 	mdiv : MasterDivider,
 	uplldiv : UpllDiv,
-	freq_cpu : Option<Hertz>,
-	freq_mck : Option<Hertz>,
-	strategy : ClockCalcStrategy
 }
 
 
@@ -382,19 +377,8 @@ impl MasterClockConfig {
 
 	/// set divider values for processor and perpheral clocks
 	pub fn from_divider(mut self, pres:MasterPrescale, mdiv:MasterDivider) -> Self {
-		self.strategy = ClockCalcStrategy::FromDivider;
 		self.pres = pres;
 		self.mdiv = mdiv;
-
-		self
-	}
-
-	/// calculate divider values from target frequencies -> *Warning* only a best effort approximation is done
-	/// since depending on the other clock signals it might not be possible to reach the exact value
-	pub fn from_freq(mut self, cpu_freq:Hertz, mck_freq:Hertz) -> Self {
-		self.strategy = ClockCalcStrategy::FromFrequency;
-		self.freq_cpu = Some(cpu_freq);
-		self.freq_mck = Some(mck_freq);
 
 		self
 	}
@@ -407,26 +391,22 @@ impl Default for MasterClockConfig {
 			pres : MasterPrescale::Pres1,
 			mdiv : MasterDivider::Div1,
 			uplldiv : UpllDiv::Div1,
-			freq_cpu : None,
-			freq_mck : None,
-			strategy : ClockCalcStrategy::FromDivider
 		}
 	}
 }
 
 /// Holds the configuration of all main clock domains
 pub struct SystemClockConfig {
-	slck_conf : SlckConfig,
-	mainck_conf : MainckConfig,
-	plla_conf : PllackConfig,
-	upll_conf : UpllckConfig,
-	mck_conf : MasterClockConfig
+	pub slck_conf : SlckConfig,
+	pub mainck_conf : MainckConfig,
+	pub plla_conf : PllackConfig,
+	pub upll_conf : UpllckConfig,
+	pub mck_conf : MasterClockConfig
 }
 
 impl SystemClockConfig {
 	/// Freezes the clock configuration by making it effective
 	pub fn freeze(&self, pmc: &mut PMC, supc: &mut SUPC) -> Clocks {
-
 		// Slow Clock configuration
 		match self.slck_conf.src {
 			SlckSrc::SlowRC => {
@@ -598,7 +578,7 @@ impl SystemClockConfig {
 					let mut d:u16 = 1;
 					let mut m:u16 = 0;
 					while d<=255 && m<63 {
-						m = unsafe { floorf32(d as f32 * factor) } as u16;
+						m = (d as f32 * factor) as u16;
 						let e:f32 = m as f32 / d as f32 - factor;
 						if m > 63 || m == 1 {
 							d += 1;
@@ -689,33 +669,26 @@ impl SystemClockConfig {
 			MasterClockSrc::UPLLCKDIV => uplldiv_freq,
 			MasterClockSrc::SLCK => self.slck_conf.freq
 		};
-		match self.mck_conf.strategy {
-			ClockCalcStrategy::FromDivider => {
-				pmc.pmc_mckr.modify(|_,w| {
-					match self.mck_conf.pres {
-						MasterPrescale::Pres1 => w.pres().clk_1(),
-						MasterPrescale::Pres2 => w.pres().clk_2(),
-						MasterPrescale::Pres3 => w.pres().clk_3(),
-						MasterPrescale::Pres4 => w.pres().clk_4(),
-						MasterPrescale::Pres8 => w.pres().clk_8(),
-						MasterPrescale::Pres16 => w.pres().clk_16(),
-						MasterPrescale::Pres32 => w.pres().clk_32(),
-						MasterPrescale::Pres64 => w.pres().clk_64()
-					};
-					match self.mck_conf.mdiv {
-						MasterDivider::Div1 => w.mdiv().eq_pck(),
-						MasterDivider::Div2 => w.mdiv().pck_div2(),
-						MasterDivider::Div3 => w.mdiv().pck_div3(),
-						MasterDivider::Div4 => w.mdiv().pck_div4()
-					}
-				});
-				processor_freq = Hertz( master_src_freq.0 / self.mck_conf.pres.to_value() );
-				peripheral_freq = Hertz( processor_freq.0 / self.mck_conf.mdiv.to_value() );
+		pmc.pmc_mckr.modify(|_,w| {
+			match self.mck_conf.pres {
+				MasterPrescale::Pres1 => w.pres().clk_1(),
+				MasterPrescale::Pres2 => w.pres().clk_2(),
+				MasterPrescale::Pres3 => w.pres().clk_3(),
+				MasterPrescale::Pres4 => w.pres().clk_4(),
+				MasterPrescale::Pres8 => w.pres().clk_8(),
+				MasterPrescale::Pres16 => w.pres().clk_16(),
+				MasterPrescale::Pres32 => w.pres().clk_32(),
+				MasterPrescale::Pres64 => w.pres().clk_64()
+			};
+			match self.mck_conf.mdiv {
+				MasterDivider::Div1 => w.mdiv().eq_pck(),
+				MasterDivider::Div2 => w.mdiv().pck_div2(),
+				MasterDivider::Div3 => w.mdiv().pck_div3(),
+				MasterDivider::Div4 => w.mdiv().pck_div4()
 			}
-			ClockCalcStrategy::FromFrequency => {
-				
-			}
-		}
+		});
+		processor_freq = Hertz( master_src_freq.0 / self.mck_conf.pres.to_value() );
+		peripheral_freq = Hertz( processor_freq.0 / self.mck_conf.mdiv.to_value() );
 		while pmc.pmc_sr.read().mckrdy().bit_is_clear() {
 			//Wait for configuration to be applied
 		}
