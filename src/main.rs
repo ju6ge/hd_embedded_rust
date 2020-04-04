@@ -4,6 +4,7 @@
 
 extern crate panic_halt;
 
+use cortex_m::Peripherals;
 use cortex_m_rt::entry;
 use cortex_m_semihosting::{hprintln};
 
@@ -12,18 +13,19 @@ use hal::gpio::*;
 use hal::clock_gen::{Clocks, MasterClockConfig, SlckConfig, MainckConfig, PllackConfig, UpllckConfig, SystemClockConfig, MasterDivider, MasterPrescale};
 use hal::serial::{config, Serial};
 use hal::time::*;
+use hal::delay::Delay;
+use embedded_hal::blocking::delay::{DelayMs, DelayUs};
 
 use embedded_hal::digital::v2::ToggleableOutputPin;
 
 use core::fmt::Write;
 
-mod system;
-mod util;
 mod debug;
 
 #[entry]
 fn main() -> ! {
-	let mut peripherals = target_device::Peripherals::take().unwrap();
+	let cortex_p = cortex_m::Peripherals::take().unwrap();
+	let peripherals = target_device::Peripherals::take().unwrap();
 
 	let wdt = &peripherals.WDT;
 	wdt.wdt_mr.write( |w| w.wddis().set_bit() );
@@ -45,6 +47,8 @@ fn main() -> ! {
 		mck_conf :MasterClockConfig::default().src_pllack().from_divider(MasterPrescale::Pres2, MasterDivider::Div2)
 	}.freeze(&mut pmc, &mut supc);
 
+	let mut delay = Delay::new(cortex_p.SYST, &clocks);
+
 	debug!("System clock initialized!");
 
 	let pioc = peripherals.PIOC.split(&mut pmc);
@@ -59,6 +63,7 @@ fn main() -> ! {
 		peripherals.UART0,
 		(tx, rx),
 		config::UartConfig::default().baudrate(115_200.bps()),
+		&clocks,
 		&mut pmc
 	).unwrap();
 
@@ -66,7 +71,7 @@ fn main() -> ! {
 	loop {
 		pin0.toggle().unwrap();
 		pin1.toggle().unwrap();
-		util::delayms(500);
+		delay.delay_ms(500 as u32);
 		writeln!(serial, "Hello, world!\r").unwrap();
 	}
 }

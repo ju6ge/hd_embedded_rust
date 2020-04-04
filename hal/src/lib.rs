@@ -9,4 +9,5 @@ pub extern crate atsame70q21  as target_device;
 pub mod gpio;
 pub mod serial;
 pub mod time;
+pub mod delay;
 pub mod clock_gen;

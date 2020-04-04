@@ -15,6 +15,7 @@ use crate::gpio::{PeripheralCntr, PeriphA, PeriphB, PeriphC, PeriphD};
 use crate::gpio::pioa::{PA4, PA5, PA6, PA9, PA10, PA21, PA23};
 use crate::gpio::piob::{PB0, PB1, PB4, PB13};
 use crate::gpio::piod::{PD3, PD15, PD16, PD17, PD18, PD19, PD25, PD26, PD28, PD30, PD31};
+use crate::clock_gen::Clocks;
 
 /// Serial error
 #[derive(Debug)]
@@ -308,6 +309,7 @@ macro_rules! uart_hal {
 					uart: $UARTX,
 					pins: PINS,
 					config: config::UartConfig,
+					clocks: &Clocks,
 					pmc: &mut PMC,
 				) -> Result<Self, config::InvalidConfig>
 				where
@@ -328,7 +330,7 @@ macro_rules! uart_hal {
 					});
 
 					//calc correct baudrate div
-					let clk_div = 150_000_000 / (16 * config.baudrate.0);
+					let clk_div = clocks.mck().0 / (16 * config.baudrate.0);
 					uart.uart_brgr.write(|w| unsafe{w.bits(clk_div)} );
 
 					//set mode
