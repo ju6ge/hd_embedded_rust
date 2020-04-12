@@ -4,23 +4,19 @@
 
 extern crate panic_halt;
 
-use cortex_m::Peripherals;
 use cortex_m_rt::entry;
-use cortex_m_semihosting::{hprintln};
 
-use hal::target_device;
-use hal::gpio::*;
-use hal::clock_gen::{Clocks, MasterClockConfig, SlckConfig, MainckConfig, PllackConfig, UpllckConfig, SystemClockConfig, MasterDivider, MasterPrescale};
-use hal::serial::{config, Serial};
-use hal::time::*;
-use hal::delay::Delay;
-use embedded_hal::blocking::delay::{DelayMs, DelayUs};
+use atsamx7x_hal::target_device;
+use atsamx7x_hal::gpio::*;
+use atsamx7x_hal::clock_gen::{Clocks, MasterClockConfig, SlckConfig, MainckConfig, PllackConfig, UpllckConfig, SystemClockConfig, MasterDivider, MasterPrescale};
+use atsamx7x_hal::serial::{config, Serial};
+use atsamx7x_hal::time::{MegaHertz, *};
+use atsamx7x_hal::delay::Delay;
+use embedded_hal::blocking::delay::{DelayMs};
 
 use embedded_hal::digital::v2::ToggleableOutputPin;
 
 use core::fmt::Write;
-
-mod debug;
 
 #[entry]
 fn main() -> ! {
@@ -41,7 +37,7 @@ fn main() -> ! {
 
 	let clocks:Clocks = SystemClockConfig{
 		slck_conf : SlckConfig::default(),
-		mainck_conf : MainckConfig::default().use_crystal(hal::time::MegaHertz(12).into()).disable_rc(),
+		mainck_conf : MainckConfig::default().use_crystal(MegaHertz(12).into()).disable_rc(),
 		plla_conf : PllackConfig::default().from_divider(1, 49).startup_cycles(100),
 		upll_conf : UpllckConfig::default().enable(),
 		mck_conf :MasterClockConfig::default().src_pllack().from_divider(MasterPrescale::Pres2, MasterDivider::Div2)
@@ -49,7 +45,6 @@ fn main() -> ! {
 
 	let mut delay = Delay::new(cortex_p.SYST, &clocks);
 
-	debug!("System clock initialized!");
 
 	let pioc = peripherals.PIOC.split(&mut pmc);
 	let mut pin0 = pioc.p19.into_open_drain_output();
@@ -66,6 +61,8 @@ fn main() -> ! {
 		&clocks,
 		&mut pmc
 	).unwrap();
+
+	writeln!(serial, "Board initialized!").unwrap();
 
 	//blink
 	loop {
