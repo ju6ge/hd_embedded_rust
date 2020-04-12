@@ -62,7 +62,7 @@ fn main() -> ! {
 		&mut pmc
 	).unwrap();
 
-	writeln!(serial, "Board initialized!").unwrap();
+	writeln!(serial, "Board initialized!\r").unwrap();
 
 	//blink
 	loop {

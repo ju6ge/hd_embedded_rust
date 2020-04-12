@@ -9,8 +9,6 @@ to a university course the is not really any chance for that.
 
 To build embedded programs you'll need:
 
-- currently you will need to use the nightly toolchain in order for this code to work since inline asm is not yet supported in stable
-
 - Rust 1.31, 1.30-beta, nightly-2018-09-13 or a newer toolchain. e.g. `rustup
   default beta`
 
