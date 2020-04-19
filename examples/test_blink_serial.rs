@@ -42,9 +42,7 @@ fn main() -> ! {
 		upll_conf : UpllckConfig::default().enable(),
 		mck_conf :MasterClockConfig::default().src_pllack().from_divider(MasterPrescale::Pres2, MasterDivider::Div2)
 	}.freeze(&mut pmc, &mut supc);
-
 	let mut delay = Delay::new(cortex_p.SYST, &clocks);
-
 
 	let pioc = peripherals.PIOC.split(&mut pmc);
 	let mut pin0 = pioc.p19.into_open_drain_output();
