@@ -1,12 +1,10 @@
 use atsame70q21::Peripherals as Same_p;
-use cortex_m::Peripherals as Cortex_p;
-
 use atsame70q21::{PMC, SDRAMC};
+
 use atsamx7x_hal::clock_gen::Clocks;
 use atsamx7x_hal::sdram::*;
 use atsamx7x_hal::gpio::*;
 use atsamx7x_hal::time::{NanoSeconds, PicoSeconds};
-use atsamx7x_hal::delay;
 
 pub struct SdramPins {
 		_a0 : pioc::PC20<PeripheralCntr<PeriphA>>,

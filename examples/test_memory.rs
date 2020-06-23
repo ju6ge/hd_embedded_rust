@@ -2,14 +2,10 @@
 #![no_main]
 #![feature(asm)]
 #![feature(alloc_error_handler)]
-#![feature(alloc)]
 
 extern crate alloc;
 
-
-#[macro_use]
 use alloc::vec::*;
-use core::alloc::GlobalAlloc;
 use core::alloc::Layout;
 use cortex_m::asm;
 use linked_list_allocator::LockedHeap;
@@ -37,7 +33,6 @@ use atsamx7x_hal::delay::Delay;
 use embedded_hal::blocking::delay::{DelayMs};
 
 use core::fmt::Write;
-use target_device::SDRAMC;
 
 use board::mem::init_sdram;
 
@@ -119,7 +114,7 @@ fn main() -> ! {
 	writeln!(serial, "-----------------------------\r").unwrap();
 	for i in 0..30 {
 		unsafe {
-			writeln!(serial, "{:?}\r", *(sdram.start_address() as *const u16).offset(i));
+			writeln!(serial, "{:?}\r", *(sdram.start_address() as *const u16).offset(i)).ok();
 		}
 	}
 	writeln!(serial, "-----------------------------\r").unwrap();
@@ -139,13 +134,13 @@ fn main() -> ! {
 	//xs.push(81);
 	//xs.push(33);
 
-	writeln!(serial, "{:?}\r", xs);
-	writeln!(serial, "{:?}\r", xs.as_ptr());
+	writeln!(serial, "{:?}\r", xs).ok();
+	writeln!(serial, "{:?}\r", xs.as_ptr()).ok();
 
 	let p = xs.as_ptr() as *const i32;
 	for i in 0..30 {
 		unsafe {
-			writeln!(serial, "{:?}\r", *p.offset(i));
+			writeln!(serial, "{:?}\r", *p.offset(i)).ok();
 		}
 	}
 	writeln!(serial, "-----------------------------\r").unwrap();
