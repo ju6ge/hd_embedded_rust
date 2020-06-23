@@ -1,12 +1,33 @@
 #![no_std]
 #![no_main]
 #![feature(asm)]
+#![feature(alloc_error_handler)]
+#![feature(alloc)]
+
+extern crate alloc;
+
+
+#[macro_use]
+use alloc::vec::*;
+use core::alloc::GlobalAlloc;
+use core::alloc::Layout;
+use cortex_m::asm;
+use linked_list_allocator::LockedHeap;
+
+#[alloc_error_handler]
+fn on_oom(_layout: Layout) -> ! {
+	asm::bkpt();
+
+	loop {}
+}
+
+#[global_allocator]
+static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 extern crate panic_halt;
 extern crate embedded_systems_board_uni_hd as board;
 
 use cortex_m_rt::entry;
-
 use atsamx7x_hal::target_device;
 use atsamx7x_hal::gpio::*;
 use atsamx7x_hal::clock_gen::{Clocks, MasterClockConfig, SlckConfig, MainckConfig, PllackConfig, UpllckConfig, SystemClockConfig, MasterDivider, MasterPrescale};
@@ -81,6 +102,53 @@ fn main() -> ! {
 	writeln!(serial, "{:?}\r", unsafe{ *(addr.offset(1)) }).unwrap();
 	writeln!(serial, "{:?}\r", unsafe{ *((addr as *mut u8).offset(1) as *mut u16) }).unwrap();
 	writeln!(serial, "{:?}\r", unsafe{ *addr }).unwrap();
+
+	//zero all memory
+	for i in 0..sdram.size()/2 {
+		unsafe {
+			let a = (sdram.start_address() as *const u16).offset(i as isize) as *mut u16;
+			*a = 0;
+		}
+	}
+
+	//setup allocator
+	unsafe {
+		HEAP_ALLOCATOR.lock().init(sdram.start_address() as usize, sdram.start_address() as usize + sdram.size() as usize);
+	}
+
+	writeln!(serial, "-----------------------------\r").unwrap();
+	for i in 0..30 {
+		unsafe {
+			writeln!(serial, "{:?}\r", *(sdram.start_address() as *const u16).offset(i));
+		}
+	}
+	writeln!(serial, "-----------------------------\r").unwrap();
+
+	let mut xs = Vec::new();
+	xs.reserve(10);
+	xs.push(42);
+	xs.push(13);
+	xs.push(512);
+	xs.push(1337);
+	xs.push(96);
+	xs.push(11);
+	xs.push(-1);
+	xs.push(69);
+	//xs.push(420);
+	//xs.push(2048);
+	//xs.push(81);
+	//xs.push(33);
+
+	writeln!(serial, "{:?}\r", xs);
+	writeln!(serial, "{:?}\r", xs.as_ptr());
+
+	let p = xs.as_ptr() as *const i32;
+	for i in 0..30 {
+		unsafe {
+			writeln!(serial, "{:?}\r", *p.offset(i));
+		}
+	}
+	writeln!(serial, "-----------------------------\r").unwrap();
 
 	//enter infinite loop at end
 	loop {
