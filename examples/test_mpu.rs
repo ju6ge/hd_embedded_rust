@@ -6,9 +6,13 @@
 extern crate alloc;
 
 use alloc::vec::*;
+use core::alloc::GlobalAlloc;
 use core::alloc::Layout;
 use cortex_m::asm;
 use linked_list_allocator::LockedHeap;
+
+#[cfg(debug_assertions)]
+use panic_halt as _;
 
 #[alloc_error_handler]
 fn on_oom(_layout: Layout) -> ! {
@@ -30,6 +34,7 @@ use atsamx7x_hal::clock_gen::{Clocks, MasterClockConfig, SlckConfig, MainckConfi
 use atsamx7x_hal::serial::{config, Serial};
 use atsamx7x_hal::time::{MegaHertz, *};
 use atsamx7x_hal::delay::Delay;
+use atsamx7x_hal::mpu::Mpu;
 use embedded_hal::blocking::delay::{DelayMs};
 
 use core::fmt::Write;
@@ -78,72 +83,27 @@ fn main() -> ! {
 		&mut pmc
 	).unwrap();
 
+	writeln!(serial, "-----------------------------\r").unwrap();
+	writeln!(serial, "Clocks and UART setup\r").unwrap();
+	writeln!(serial, "-----------------------------\r").unwrap();
+	writeln!(serial, "Enable Mpu\r").unwrap();
+	let mut mpu = cortex_p.MPU;
+	mpu.enable();
+
 	let mut delay = Delay::new(cortex_p.SYST, &clocks);
 
+	writeln!(serial, "-----------------------------\r").unwrap();
+	writeln!(serial, "Setup Sdaram\r").unwrap();
 	//setup sdram and write and read some values for testing
 	let sdramc = peripherals.SDRAMC;
 	let sdram = init_sdram(&mut pmc, sdramc, &clocks);
-
-	let data : u16 = 42 + 256;
-	let addr = unsafe{ sdram.start_address().offset(300) } as *mut u16;
-
-	writeln!(serial, "-----------------------------\r").ok();
-	writeln!(serial, "{:?}\r", addr).ok();
-	unsafe {core::ptr::write_volatile(addr, data)};
-	unsafe {core::ptr::write_volatile(addr.offset(1), data+512)};
-
-	delay.delay_ms(1 as u32);
-
-	writeln!(serial, "{:?}\r", unsafe{ *(addr.offset(1)) }).ok();
-	writeln!(serial, "{:?}\r", unsafe{ *((addr as *mut u8).offset(1) as *mut u16) }).ok();
-	writeln!(serial, "{:?}\r", unsafe{ *addr }).ok();
-
-	//zero all memory
-	for i in 0..sdram.size()/2 {
-		unsafe {
-			let a = (sdram.start_address() as *const u16).offset(i as isize) as *mut u16;
-			*a = 0;
-		}
-	}
 
 	//setup allocator
 	unsafe {
 		HEAP_ALLOCATOR.lock().init(sdram.start_address() as usize, sdram.start_address() as usize + sdram.size() as usize);
 	}
 
-	writeln!(serial, "-----------------------------\r").ok();
-	for i in 0..30 {
-		unsafe {
-			writeln!(serial, "{:?}\r", *(sdram.start_address() as *const u16).offset(i)).ok();
-		}
-	}
-	writeln!(serial, "-----------------------------\r").ok();
-
-	let mut xs = Vec::new();
-	xs.reserve(10);
-	xs.push(42);
-	xs.push(13);
-	xs.push(512);
-	xs.push(1337);
-	xs.push(96);
-	xs.push(11);
-	xs.push(-1);
-	xs.push(69);
-	//xs.push(420);
-	//xs.push(2048);
-	//xs.push(81);
-	//xs.push(33);
-
-	writeln!(serial, "{:?}\r", xs).ok();
-	writeln!(serial, "{:?}\r", xs.as_ptr()).ok();
-
-	let p = xs.as_ptr() as *const i32;
-	for i in 0..30 {
-		unsafe {
-			writeln!(serial, "{:?}\r", *p.offset(i)).ok();
-		}
-	}
-	writeln!(serial, "-----------------------------\r").ok();
+	writeln!(serial, "-----------------------------\r").unwrap();
 
 	//enter infinite loop at end
 	loop {
