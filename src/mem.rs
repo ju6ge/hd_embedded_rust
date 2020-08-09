@@ -3,10 +3,11 @@ use atsame70q21::{PMC, SDRAMC};
 
 use atsamx7x_hal::clock_gen::Clocks;
 use atsamx7x_hal::sdram::*;
+use atsamx7x_hal::ebi::*;
 use atsamx7x_hal::gpio::*;
 use atsamx7x_hal::time::{NanoSeconds, PicoSeconds};
 
-pub struct SdramPins {
+pub struct EbiPins {
 		_a0 : pioc::PC20<PeripheralCntr<PeriphA>>,
 		_a1 : pioc::PC21<PeripheralCntr<PeriphA>>,
 		_a2 : pioc::PC22<PeripheralCntr<PeriphA>>,
@@ -51,8 +52,8 @@ pub struct SdramPins {
 		_we : piod::PD29<PeripheralCntr<PeriphC>>
 }
 
-impl Default for SdramPins {
-	fn default() -> SdramPins {
+impl Default for EbiPins {
+	fn default() -> EbiPins {
 		let same = unsafe{Same_p::steal()};
 		let mut pmc = same.PMC;
 		//Set Pins to correct mode
@@ -61,7 +62,7 @@ impl Default for SdramPins {
 		let piod = same.PIOD.split(&mut pmc);
 		let pioe = same.PIOE.split(&mut pmc);
 
-		SdramPins {
+		EbiPins {
 			_a0 : pioc.p20.into_pmd0(),
 			_a1 : pioc.p21.into_pmd0(),
 			_a2 : pioc.p22.into_pmd0(),
@@ -107,11 +108,9 @@ impl Default for SdramPins {
 	}
 }
 
-impl atsamx7x_hal::sdram::SdramPins for SdramPins {}
+impl atsamx7x_hal::ebi::EBIPins for EbiPins{}
 
-pub fn init_sdram(pmc: &mut PMC, sdramc: SDRAMC, clocks: &Clocks)
-->Sdram<SdramPins>{
-	let pins = SdramPins::default();
+pub fn init_sdram(pmc: &mut PMC, sdramc: SDRAMC, clocks: &Clocks, ebi: &ExternalBusInterface) -> Sdram{
 
 	let conf = SdramConfig {
 		banks : SdramBanks::Bank4,
@@ -130,6 +129,6 @@ pub fn init_sdram(pmc: &mut PMC, sdramc: SDRAMC, clocks: &Clocks)
 		},
 	};
 
-	let sdram = Sdram::setup(sdramc, pins, conf, clocks, pmc).unwrap();
+	let sdram = Sdram::setup(sdramc, &ebi, conf, clocks, pmc).unwrap();
 	sdram
 }

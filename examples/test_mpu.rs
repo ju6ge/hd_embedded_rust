@@ -5,14 +5,11 @@
 
 extern crate alloc;
 
-use alloc::vec::*;
-use core::alloc::GlobalAlloc;
+//use alloc::vec::*;
+//use core::alloc::GlobalAlloc;
 use core::alloc::Layout;
 use cortex_m::asm;
 use linked_list_allocator::LockedHeap;
-
-#[cfg(debug_assertions)]
-use panic_halt as _;
 
 #[alloc_error_handler]
 fn on_oom(_layout: Layout) -> ! {
@@ -35,11 +32,13 @@ use atsamx7x_hal::serial::{config, Serial};
 use atsamx7x_hal::time::{MegaHertz, *};
 use atsamx7x_hal::delay::Delay;
 use atsamx7x_hal::mpu::Mpu;
-use embedded_hal::blocking::delay::{DelayMs};
+use atsamx7x_hal::ebi::{ExternalBusInterface};
+//use embedded_hal::blocking::delay::{DelayMs};
 
 use core::fmt::Write;
 
 use board::mem::init_sdram;
+use board::mem::{EbiPins};
 
 #[entry]
 fn main() -> ! {
@@ -90,13 +89,17 @@ fn main() -> ! {
 	let mut mpu = cortex_p.MPU;
 	mpu.enable();
 
-	let mut delay = Delay::new(cortex_p.SYST, &clocks);
+	let mut _delay = Delay::new(cortex_p.SYST, &clocks);
 
 	writeln!(serial, "-----------------------------\r").unwrap();
 	writeln!(serial, "Setup Sdaram\r").unwrap();
+
+	let pins = EbiPins::default();
+	let ebi = ExternalBusInterface::new(&pins);
+
 	//setup sdram and write and read some values for testing
 	let sdramc = peripherals.SDRAMC;
-	let sdram = init_sdram(&mut pmc, sdramc, &clocks);
+	let sdram = init_sdram(&mut pmc, sdramc, &clocks, &ebi);
 
 	//setup allocator
 	unsafe {

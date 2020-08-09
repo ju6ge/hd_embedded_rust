@@ -30,11 +30,13 @@ use atsamx7x_hal::clock_gen::{Clocks, MasterClockConfig, SlckConfig, MainckConfi
 use atsamx7x_hal::serial::{config, Serial};
 use atsamx7x_hal::time::{MegaHertz, *};
 use atsamx7x_hal::delay::Delay;
+use atsamx7x_hal::ebi::{ExternalBusInterface};
 use embedded_hal::blocking::delay::{DelayMs};
 
 use core::fmt::Write;
 
 use board::mem::init_sdram;
+use board::mem::{EbiPins};
 
 #[entry]
 fn main() -> ! {
@@ -80,9 +82,12 @@ fn main() -> ! {
 
 	let mut delay = Delay::new(cortex_p.SYST, &clocks);
 
+	let pins = EbiPins::default();
+	let ebi = ExternalBusInterface::new(&pins);
+
 	//setup sdram and write and read some values for testing
 	let sdramc = peripherals.SDRAMC;
-	let sdram = init_sdram(&mut pmc, sdramc, &clocks);
+	let sdram = init_sdram(&mut pmc, sdramc, &clocks, &ebi);
 
 	let data : u16 = 42 + 256;
 	let addr = unsafe{ sdram.start_address().offset(300) } as *mut u16;
