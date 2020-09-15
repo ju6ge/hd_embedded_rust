@@ -8,6 +8,7 @@ use atsamx7x_hal::gpio::*;
 use atsamx7x_hal::time::{NanoSeconds, PicoSeconds};
 
 pub struct EbiPins {
+	    // address pins
 		_a0 : pioc::PC20<PeripheralCntr<PeriphA>>,
 		_a1 : pioc::PC21<PeripheralCntr<PeriphA>>,
 		_a2 : pioc::PC22<PeripheralCntr<PeriphA>>,
@@ -22,6 +23,7 @@ pub struct EbiPins {
 		_a11 : pioc::PC31<PeripheralCntr<PeriphA>>,
 		_a12 : pioa::PA18<PeripheralCntr<PeriphC>>,
 
+		//data pins
 		_d0 : pioc::PC0<PeripheralCntr<PeriphA>>,
 		_d1 : pioc::PC1<PeripheralCntr<PeriphA>>,
 		_d2 : pioc::PC2<PeripheralCntr<PeriphA>>,
@@ -39,18 +41,30 @@ pub struct EbiPins {
 		_d14 : pioa::PA15<PeripheralCntr<PeriphA>>,
 		_d15 : pioa::PA16<PeripheralCntr<PeriphA>>,
 
+		//bank select
 		_b0 : pioa::PA20<PeripheralCntr<PeriphC>>,
 		_b1 : pioa::PA0<PeripheralCntr<PeriphC>>,
 
+		// mask
 		_msk0 : pioc::PC18<PeripheralCntr<PeriphA>>,
 		_msk1 : piod::PD15<PeripheralCntr<PeriphC>>,
 
+		//clk
 		_clk : piod::PD23<PeripheralCntr<PeriphC>>,
+
+		// sdram
 		_cke : piod::PD14<PeripheralCntr<PeriphC>>,
 		_ras : piod::PD16<PeripheralCntr<PeriphC>>,
 		_cas : piod::PD17<PeripheralCntr<PeriphC>>,
-		_we : piod::PD29<PeripheralCntr<PeriphC>>
-}
+		_we : piod::PD29<PeripheralCntr<PeriphC>>,
+
+		// sram
+		_ior : pioc::PC11<PeripheralCntr<PeriphA>>,
+		_iow : pioc::PC8<PeripheralCntr<PeriphA>>,
+		_cs_eth : pioc::PC14<PeripheralCntr<PeriphA>>,
+		_cs_lcd : pioa::PA22<PeripheralCntr<PeriphC>>
+
+		}
 
 impl Default for EbiPins {
 	fn default() -> EbiPins {
@@ -103,7 +117,12 @@ impl Default for EbiPins {
 			_ras : piod.p16.into_peripheral_c(),
 			_we : piod.p29.into_peripheral_c(),
 			_msk0 : pioc.p18.into_peripheral_a(),
-			_msk1 : piod.p15.into_peripheral_c()
+			_msk1 : piod.p15.into_peripheral_c(),
+
+			_ior : pioc.p11.into_peripheral_a(),
+			_iow : pioc.p8.into_peripheral_a(),
+			_cs_eth : pioc.p14.into_peripheral_a(),
+			_cs_lcd : pioa.p22.into_peripheral_c()
 		}
 	}
 }
